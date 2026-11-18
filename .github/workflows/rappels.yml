@@ -4,7 +4,7 @@ name: Rappels (notifications)
 # Nécessite le secret FIREBASE_SERVICE_ACCOUNT (clé du compte de service Firebase, au format JSON).
 on:
   schedule:
-    - cron: '7,22,37,52 * * * *'
+    - cron: '3,18,33,48 * * * *'
   workflow_dispatch:
 
 permissions:
@@ -50,7 +50,7 @@ jobs:
           SITE_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/
       # GitHub met en pause les tâches planifiées après 60 jours sans activité sur le dépôt.
       - name: Garder la tâche planifiée active
-        if: always()
+        if: always() && github.event_name == 'schedule'
         continue-on-error: true
         run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/rappels.yml/enable" --silent
         env:
