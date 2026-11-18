@@ -262,7 +262,7 @@ export default function ImportScreen({ people, onImport, onRestore, incoming, on
         <>
           <SectionTitle>💾 Sauvegarde</SectionTitle>
           <Card>
-            <Text style={styles.fbTxt}>Tes anniversaires restent uniquement sur ce téléphone. Fais une sauvegarde de temps en temps (dans Fichiers ou iCloud Drive) : pour la restaurer, touche « Mes contacts » et choisis le fichier.</Text>
+            <Text style={styles.fbTxt}>Tes anniversaires restent uniquement sur ce téléphone. Fais une sauvegarde de temps en temps : touche le bouton, puis « Enregistrer dans Fichiers » (dans iCloud Drive, elle sera à l'abri même si tu changes de téléphone). Rien n'est envoyé sur internet. Pour la restaurer, touche « Mes contacts » et choisis le fichier.</Text>
             <View style={{ marginTop: 12 }}>
               <GradientButton label="Sauvegarder mes anniversaires" icon="💾" colorsOverride={gradients.mint} disabled={!people.length} onPress={() => exportBackup(people)} />
             </View>
