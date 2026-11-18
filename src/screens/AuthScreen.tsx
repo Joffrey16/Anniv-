@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { authErrorMessage, resetPassword, signIn } from '../cloud';
+import { authErrorMessage, resetPassword, signIn, signInWithGoogle } from '../cloud';
+import { isWeb } from '../platform';
 import { colors, gradients, shadow } from '../theme';
 import { GradientButton } from '../components/ui';
 
@@ -21,6 +22,18 @@ export default function AuthScreen({ onSkip, localCount }: Props) {
       await signIn(email, password, mode === 'create');
     } catch (e) {
       setError(authErrorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const google = async () => {
+    setBusy(true); setError(null); setInfo(null);
+    try {
+      await signInWithGoogle();
+    } catch (e) {
+      const m = authErrorMessage(e);
+      if (m) setError(m);
     } finally {
       setBusy(false);
     }
@@ -47,6 +60,15 @@ export default function AuthScreen({ onSkip, localCount }: Props) {
         </LinearGradient>
 
         <View style={styles.card}>
+          {isWeb && (
+            <>
+              <Pressable onPress={google} disabled={busy} style={({ pressed }) => [styles.google, pressed && { opacity: 0.7 }]}>
+                <Text style={styles.gLogo}><Text style={{ color: '#4285F4' }}>G</Text></Text>
+                <Text style={styles.googleTxt}>Continuer avec Google</Text>
+              </Pressable>
+              <View style={styles.orRow}><View style={styles.orLine} /><Text style={styles.orTxt}>ou avec ton e-mail</Text><View style={styles.orLine} /></View>
+            </>
+          )}
           <View style={styles.tabs}>
             {(['create', 'login'] as const).map((m) => (
               <Pressable key={m} onPress={() => { setMode(m); setError(null); setInfo(null); }} style={[styles.tab, mode === m && styles.tabOn]}>
@@ -95,6 +117,12 @@ const styles = StyleSheet.create({
   title: { color: '#fff', fontSize: 40, fontWeight: '900', letterSpacing: -1, marginTop: 4 },
   sub: { color: 'rgba(255,255,255,0.92)', fontSize: 16, fontWeight: '600', marginTop: 4 },
   card: { backgroundColor: '#fff', marginHorizontal: 20, marginTop: -36, borderRadius: 26, padding: 20, ...shadow },
+  google: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: colors.line, borderRadius: 16, paddingVertical: 13, backgroundColor: '#fff' },
+  gLogo: { fontSize: 20, fontWeight: '900', marginRight: 10 },
+  googleTxt: { fontSize: 16, fontWeight: '800', color: colors.ink },
+  orRow: { flexDirection: 'row', alignItems: 'center', marginVertical: 16 },
+  orLine: { flex: 1, height: 1, backgroundColor: colors.line },
+  orTxt: { color: colors.muted, fontWeight: '700', marginHorizontal: 10, fontSize: 13 },
   tabs: { flexDirection: 'row', backgroundColor: colors.soft, borderRadius: 14, padding: 4, marginBottom: 6 },
   tab: { flex: 1, paddingVertical: 10, borderRadius: 11, alignItems: 'center' },
   tabOn: { backgroundColor: '#fff', ...shadow, shadowOpacity: 0.06 },

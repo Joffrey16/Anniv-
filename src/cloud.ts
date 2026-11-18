@@ -2,8 +2,8 @@
 import { Platform } from 'react-native';
 import { initializeApp } from 'firebase/app';
 import {
-  Auth, connectAuthEmulator, createUserWithEmailAndPassword, onAuthStateChanged, sendPasswordResetEmail,
-  signInWithEmailAndPassword, signOut, User,
+  Auth, connectAuthEmulator, createUserWithEmailAndPassword, GoogleAuthProvider, onAuthStateChanged, sendPasswordResetEmail,
+  signInWithEmailAndPassword, signInWithPopup, signOut, User,
 } from 'firebase/auth';
 import {
   collection, connectFirestoreEmulator, deleteDoc, doc, Firestore, getDoc, initializeFirestore, memoryLocalCache,
@@ -14,7 +14,7 @@ import { createAuth } from './firebaseAuth';
 import type { Person, Settings } from './types';
 
 const emulator = process.env.EXPO_PUBLIC_FIREBASE_EMULATOR; // ex. "127.0.0.1" pour les tests
-const config = firebaseConfig ?? (emulator ? { apiKey: 'demo', projectId: 'demo-anniv', authDomain: 'demo-anniv.firebaseapp.com', appId: 'demo' } : null);
+const config = emulator ? { apiKey: 'demo', projectId: 'demo-anniv', authDomain: 'demo-anniv.firebaseapp.com', appId: 'demo' } : firebaseConfig;
 
 export const cloudEnabled = Boolean(config);
 
@@ -41,6 +41,14 @@ export async function signIn(email: string, password: string, create: boolean) {
   return create ? createUserWithEmailAndPassword(auth, email.trim(), password) : signInWithEmailAndPassword(auth, email.trim(), password);
 }
 
+/** Connexion Google (version web) : fenêtre Google, puis retour dans l'app. */
+export async function signInWithGoogle() {
+  if (!auth) throw new Error('cloud-off');
+  const provider = new GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: 'select_account' });
+  return signInWithPopup(auth, provider);
+}
+
 export const resetPassword = (email: string) => (auth ? sendPasswordResetEmail(auth, email.trim()) : Promise.reject(new Error('cloud-off')));
 export const logOut = () => (auth ? signOut(auth) : Promise.resolve());
 
@@ -57,7 +65,15 @@ export function authErrorMessage(e: unknown): string {
     'auth/user-not-found': 'Aucun compte avec cet e-mail.',
     'auth/too-many-requests': 'Trop de tentatives. Réessaie dans quelques minutes.',
     'auth/network-request-failed': 'Pas de connexion internet.',
+    'auth/operation-not-allowed': "Ce mode de connexion n'est pas encore activé. Utilise l'autre en attendant.",
+    'auth/popup-blocked': 'La fenêtre Google a été bloquée. Réessaie, ou connecte-toi avec ton e-mail.',
+    'auth/unauthorized-domain': "La connexion Google n'est pas encore autorisée pour ce site.",
+    'auth/account-exists-with-different-credential': 'Un compte existe déjà avec cet e-mail : connecte-toi avec ton mot de passe.',
+    'auth/internal-error': "La connexion Google n'a pas pu s'ouvrir. Réessaie, ou connecte-toi avec ton e-mail.",
+    'auth/cancelled-popup-request': '',
+    'auth/popup-closed-by-user': '',
   };
+  if (!(code in map)) console.warn('[auth]', e);
   return map[code] ?? 'Une erreur est survenue. Réessaie.';
 }
 
