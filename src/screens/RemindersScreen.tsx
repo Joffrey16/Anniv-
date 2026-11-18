@@ -1,23 +1,25 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { DEFAULT_WISH_TEMPLATE } from '../message';
 import { exportToCalendar } from '../webCalendar';
 import { isIOS } from '../platform';
 import { GradientButton } from '../components/ui';
 import { gradients } from '../theme';
-import { notificationsSupported, planReminders, sendTestNotification } from '../notifications';
+import { notificationsSupported, sendTestNotification } from '../notifications';
+import { planReminders } from '../reminderPlan';
+import { disablePush, enablePush, pushConfigured, PushStatus, pushStatus, testPush } from '../push';
 import { colors } from '../theme';
 import { Person, ReminderKind, ReminderRule, Settings } from '../types';
 import { Card, Chip, GhostButton, SectionTitle, Toggle } from '../components/ui';
 import { newId } from '../storage';
 
-type Props = { people: Person[]; settings: Settings; onChange: (s: Settings) => void; permission: boolean; onAskPermission: () => void };
+type Props = { people: Person[]; settings: Settings; onChange: (s: Settings) => void; permission: boolean; onAskPermission: () => void; uid: string | null; cloud: boolean };
 
 const pad = (n: number) => String(n).padStart(2, '0');
 const DAYS_OPTIONS = [0, 1, 2, 3, 7, 14, 30];
 const dayLabel = (d: number) => (d === 0 ? 'Le jour J' : d === 1 ? 'La veille' : `J-${d}`);
 
-export default function RemindersScreen({ people, settings, onChange, permission, onAskPermission }: Props) {
+export default function RemindersScreen({ people, settings, onChange, permission, onAskPermission, uid, cloud }: Props) {
   const upcoming = useMemo(() => planReminders(people, settings).slice(0, 5), [people, settings]);
 
   const update = (id: string, patch: Partial<ReminderRule>) =>
@@ -36,9 +38,10 @@ export default function RemindersScreen({ people, settings, onChange, permission
           <Text style={styles.warnTxt}>🔕 Les notifications sont désactivées. Touche ici pour les activer.</Text>
         </Pressable>
       )}
+      {pushConfigured && <PushCard uid={uid} cloud={cloud} />}
       {!notificationsSupported && (
         <Card style={{ marginTop: 16 }}>
-          <Text style={styles.calTitle}>📅 Recevoir les rappels</Text>
+          <Text style={styles.calTitle}>{pushConfigured ? '📅 Ou dans ton calendrier' : '📅 Recevoir les rappels'}</Text>
           <Text style={styles.calTxt}>
             Règle tes rappels ci-dessous, puis ajoute-les au calendrier de ton téléphone : c'est lui qui t'enverra les alertes, même si l'app est fermée.
           </Text>
@@ -97,13 +100,76 @@ export default function RemindersScreen({ people, settings, onChange, permission
         {upcoming.length === 0 && <Text style={styles.note}>Rien de prévu pour l'instant.</Text>}
         {upcoming.map((n, i) => (
           <View key={i} style={[styles.upRow, i > 0 && { borderTopWidth: 1, borderTopColor: colors.line }]}>
-            <Text style={styles.upDate}>{n.date.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })} · {pad(n.date.getHours())}h{pad(n.date.getMinutes())}</Text>
+            <Text style={styles.upDate}>{new Date(n.at).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })} · {pad(new Date(n.at).getHours())}h{pad(new Date(n.at).getMinutes())}</Text>
             <Text style={styles.upTitle}>{n.title}</Text>
           </View>
         ))}
       </Card>
       {notificationsSupported && <View style={{ marginTop: 16 }}><GhostButton label="🔔  Envoyer une notification de test" onPress={sendTestNotification} color={colors.violet} /></View>}
     </ScrollView>
+  );
+}
+
+function PushCard({ uid, cloud }: { uid: string | null; cloud: boolean }) {
+  const [status, setStatus] = useState<PushStatus | 'loading'>('loading');
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState('');
+  useEffect(() => { pushStatus().then(setStatus).catch(() => setStatus('unsupported')); }, []);
+
+  const fail = (e: unknown) => setMsg(`Impossible pour l'instant (${e instanceof Error ? e.message : String(e)}). Réessaie dans un moment.`);
+  const enable = () => {
+    if (!uid) return;
+    setBusy(true); setMsg('');
+    // enablePush demande l'autorisation tout de suite : Safari l'exige pendant l'appui.
+    enablePush(uid).then((st) => {
+      setStatus(st);
+      if (st === 'on') setMsg('C\'est activé ! Touche « Tester » pour vérifier.');
+    }).catch(fail).finally(() => setBusy(false));
+  };
+  const disable = () => {
+    if (!uid) return;
+    setBusy(true); setMsg('');
+    disablePush(uid).then(() => setStatus('off')).catch(fail).finally(() => setBusy(false));
+  };
+  const test = () => {
+    if (!uid) return;
+    setMsg('');
+    testPush(uid).then(() => setMsg('Une notification vient de s\'afficher. Une 2e va arriver du serveur de rappels d\'ici 15 minutes : si tu la reçois, tout fonctionne 🎉')).catch(fail);
+  };
+
+  let body: React.ReactNode = null;
+  if (!uid) {
+    body = <Text style={styles.calTxt}>{cloud ? 'Connecte-toi à ton compte (bouton 👤 sur l\'accueil) pour recevoir les rappels en notification.' : 'Les notifications ont besoin d\'un compte.'}</Text>;
+  } else if (status === 'needs-install') {
+    body = <Text style={styles.calTxt}>Sur iPhone, les notifications marchent quand l'app est sur l'écran d'accueil : dans Safari, touche Partager ⬆️ puis « Sur l'écran d'accueil », et ouvre Anniv ! depuis son icône.</Text>;
+  } else if (status === 'unsupported') {
+    body = <Text style={styles.calTxt}>Ce navigateur ne gère pas les notifications. Utilise l'ajout au calendrier ci-dessous.</Text>;
+  } else if (status === 'denied') {
+    body = <Text style={styles.calTxt}>Les notifications sont bloquées pour Anniv !. {isIOS ? 'Sur iPhone : Réglages › Notifications › Anniv ! › Autoriser les notifications.' : 'Autorise-les dans les réglages du navigateur pour ce site.'}</Text>;
+  } else if (status === 'on') {
+    body = (
+      <>
+        <Text style={styles.pushOn}>✅ Activées sur cet appareil</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
+          <View style={{ flex: 1 }}><GhostButton label="🔔  Tester" onPress={test} color={colors.violet} /></View>
+          <Pressable onPress={disable} disabled={busy} style={{ marginLeft: 16 }}><Text style={styles.del}>Désactiver</Text></Pressable>
+        </View>
+      </>
+    );
+  } else if (status === 'off') {
+    body = (
+      <View style={{ marginTop: 12 }}>
+        <GradientButton label={busy ? 'Activation…' : 'Activer les notifications'} icon="🔔" disabled={busy} onPress={enable} />
+      </View>
+    );
+  }
+  return (
+    <Card style={{ marginTop: 16 }}>
+      <Text style={styles.calTitle}>🔔 Notifications sur ce téléphone</Text>
+      <Text style={styles.calTxt}>Les rappels réglés plus bas arrivent en notification à l'heure choisie (à quelques minutes près), même app fermée.</Text>
+      {body}
+      {msg ? <Text style={styles.calHint}>{msg}</Text> : null}
+    </Card>
   );
 }
 
@@ -139,6 +205,7 @@ const styles = StyleSheet.create({
   calTxt: { color: colors.muted, fontSize: 14, lineHeight: 20, marginTop: 6 },
   calHint: { color: colors.muted, fontSize: 12, lineHeight: 17, marginTop: 10 },
   upRow: { paddingVertical: 10 },
+  pushOn: { color: colors.mint, fontWeight: '900', fontSize: 15, marginTop: 10 },
   upDate: { color: colors.muted, fontSize: 12, fontWeight: '700', textTransform: 'capitalize' },
   upTitle: { color: colors.ink, fontWeight: '700', marginTop: 2 },
 });

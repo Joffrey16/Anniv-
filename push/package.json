@@ -1,0 +1,10 @@
+{
+  "name": "anniv-rappels",
+  "private": true,
+  "type": "module",
+  "description": "Envoi des notifications de rappel (lancé par GitHub Actions)",
+  "dependencies": {
+    "firebase-admin": "^14.5.1",
+    "web-push": "^4.0.0"
+  }
+}

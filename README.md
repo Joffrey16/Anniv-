@@ -55,3 +55,18 @@ Si `src/firebaseConfig.ts` contient la configuration d'un projet Firebase, l'app
 Mise en place : créer un projet Firebase, activer Authentication › E-mail/Mot de passe, créer Firestore (mode production), coller le contenu de `firestore.rules` dans Firestore › Règles, puis la config web dans `src/firebaseConfig.ts`.
 
 Tests locaux avec les émulateurs : `npx firebase-tools emulators:start --only auth,firestore --project demo-anniv`, puis `EXPO_PUBLIC_FIREBASE_EMULATOR=127.0.0.1 npx expo start --web`.
+
+## Notifications sur iPhone (version web installée)
+
+Sur l'app installée sur l'écran d'accueil (iOS 16.4 ou plus), l'onglet **Rappels** propose « Activer les notifications ».
+Le fonctionnement, entièrement gratuit :
+
+- l'app calcule le planning des prochains rappels et le range dans le compte (`pushPlan`), avec l'abonnement de chaque appareil (`pushDevices`) ;
+- toutes les 15 minutes, GitHub Actions (`.github/workflows/rappels.yml`) lance `push/send.mjs`, qui envoie les rappels arrivés à échéance ;
+- les clés de notification (VAPID) sont dérivées du compte de service Firebase (`push/vapid.mjs`), donc un seul secret à configurer.
+
+Configuration (une seule fois) :
+
+1. Console Firebase › ⚙️ Paramètres du projet › **Comptes de service** › « Générer une nouvelle clé privée » (un fichier .json se télécharge).
+2. GitHub › dépôt › Settings › Secrets and variables › Actions › **New repository secret** : nom `FIREBASE_SERVICE_ACCOUNT`, valeur = tout le contenu du fichier .json. Ne le partage nulle part ailleurs.
+3. Relancer la publication du site (Actions › « Publier la version web » › Run workflow) pour que le site reçoive la clé publique.

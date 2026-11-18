@@ -25,6 +25,14 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
+      # Clé publique des notifications, calculée à partir du secret (vide tant qu'il n'est pas configuré).
+      - name: Clé des notifications
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -n "$FIREBASE_SERVICE_ACCOUNT" ]; then
+            echo "EXPO_PUBLIC_VAPID_KEY=$(node push/vapid.mjs public)" >> "$GITHUB_ENV"
+          fi
       - run: npm run build:web
         env:
           EXPO_BASE_URL: /${{ github.event.repository.name }}

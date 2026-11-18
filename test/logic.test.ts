@@ -122,3 +122,32 @@ test('signes, âges ronds, libellés', () => {
   const w = randomWish('anniversaire', 'drole');
   assert.ok(w.includes('{prenom}'));
 });
+
+test('planning des rappels (notifications)', async () => {
+  const { planReminders } = await import('../src/reminderPlan.ts');
+  const settings = {
+    wishTemplate: '',
+    reminders: [
+      { id: 'w', kind: 'souhaiter' as const, daysBefore: 0, hour: 9, minute: 0, enabled: true },
+      { id: 'g', kind: 'cadeau' as const, daysBefore: 7, hour: 18, minute: 0, enabled: true },
+      { id: 'off', kind: 'souhaiter' as const, daysBefore: 1, hour: 9, minute: 0, enabled: false },
+    ],
+  };
+  const lea = { id: 'lea', name: 'Léa', day: 20, month: 11, year: 1996, relation: 'ami' as const, emoji: '', giftNeeded: true };
+  const tom = { id: 'tom', name: 'Tom', day: 18, month: 11, relation: 'ami' as const, emoji: '', giftNeeded: false };
+  const plan = planReminders([lea, tom], settings, now, { max: 50, perRule: 2 });
+  // Tom : aujourd'hui 9h est déjà passé (il est 10h) → 2027 et 2028 ; pas de cadeau prévu.
+  assert.deepEqual(plan.filter((r) => r.personId === 'tom').map((r) => new Date(r.at).getFullYear()), [2027]);
+  // Léa : souhaiter le 20/11 à 9h, cadeau 7 jours avant (13/11 déjà passé → 13/11/2027).
+  const leaPlan = plan.filter((r) => r.personId === 'lea');
+  assert.equal(leaPlan[0].kind, 'souhaiter');
+  assert.equal(new Date(leaPlan[0].at).toString(), new Date(2026, 10, 20, 9, 0).toString());
+  assert.match(leaPlan[0].title, /Léa/);
+  assert.match(leaPlan[0].body, /30 ans/);
+  assert.ok(leaPlan.some((r) => r.kind === 'cadeau' && new Date(r.at).getFullYear() === 2027));
+  assert.ok(plan.every((r, i) => i === 0 || plan[i - 1].at <= r.at));
+  // Déjà souhaité cette année : plus de rappel « souhaiter » pour 2026.
+  const done = planReminders([{ ...lea, track: { 2026: { wished: true } } }], settings, now, { max: 50, perRule: 2 });
+  assert.ok(!done.some((r) => r.kind === 'souhaiter' && new Date(r.at).getFullYear() === 2026));
+  assert.ok(done.some((r) => r.kind === 'souhaiter' && new Date(r.at).getFullYear() === 2027));
+});

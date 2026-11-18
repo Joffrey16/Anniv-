@@ -6,12 +6,13 @@ import {
   signInWithEmailAndPassword, signInWithPopup, signOut, User,
 } from 'firebase/auth';
 import {
-  collection, connectFirestoreEmulator, deleteDoc, doc, Firestore, getDoc, initializeFirestore, memoryLocalCache,
+  collection, connectFirestoreEmulator, deleteDoc, deleteField, doc, Firestore, getDoc, initializeFirestore, memoryLocalCache,
   onSnapshot, persistentLocalCache, setDoc, writeBatch,
 } from 'firebase/firestore';
 import { firebaseConfig } from './firebaseConfig';
 import { createAuth } from './firebaseAuth';
 import type { Person, Settings } from './types';
+import type { PlannedReminder } from './reminderPlan';
 
 const emulator = process.env.EXPO_PUBLIC_FIREBASE_EMULATOR; // ex. "127.0.0.1" pour les tests
 const config = emulator ? { apiKey: 'demo', projectId: 'demo-anniv', authDomain: 'demo-anniv.firebaseapp.com', appId: 'demo' } : firebaseConfig;
@@ -102,3 +103,18 @@ export async function uploadPeople(uid: string, people: Person[]) {
 export const putPerson = (uid: string, p: Person) => setDoc(doc(peopleCol(uid), p.id), p);
 export const removePerson = (uid: string, id: string) => deleteDoc(doc(peopleCol(uid), id));
 export const putSettings = (uid: string, s: Settings) => setDoc(userDoc(uid), { settings: s }, { merge: true });
+
+// Notifications push : abonnements des appareils + planning des rappels, lus par le serveur de rappels.
+export const putPushDevice = (uid: string, id: string, d: { sub: unknown; ua: string; at: number }) =>
+  setDoc(userDoc(uid), { pushEnabled: true, pushDevices: { [id]: d } }, { merge: true });
+
+export async function removePushDevice(uid: string, id: string) {
+  const devices = { ...((await getDoc(userDoc(uid))).data()?.pushDevices ?? {}) } as Record<string, unknown>;
+  delete devices[id];
+  await setDoc(userDoc(uid), { pushDevices: { [id]: deleteField() }, pushEnabled: Object.keys(devices).length > 0 }, { merge: true });
+}
+
+export const requestPushTest = (uid: string) => setDoc(userDoc(uid), { pushTest: Date.now() }, { merge: true });
+
+export const putPushPlan = (uid: string, plan: PlannedReminder[]) =>
+  setDoc(userDoc(uid), { pushPlan: plan, pushPlanAt: Date.now() }, { merge: true });

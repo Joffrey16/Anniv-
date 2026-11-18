@@ -2,8 +2,9 @@
 // Principe : on garde une « photo » de ce qui est en ligne ; à chaque changement local, on n'envoie que la différence.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { User } from 'firebase/auth';
-import { cloudEnabled, fetchSettings, logOut, onUser, putPerson, putSettings, removePerson, subscribePeople, subscribeSettings, uploadPeople } from './cloud';
+import { cloudEnabled, fetchSettings, logOut, onUser, putPerson, putPushPlan, putSettings, removePerson, subscribePeople, subscribeSettings, uploadPeople } from './cloud';
 import { DEFAULT_SETTINGS } from './storage';
+import { planReminders } from './reminderPlan';
 import type { Person, Settings } from './types';
 
 function stable(v: unknown): string {
@@ -61,6 +62,7 @@ export function useCloudSync({ loaded, people, settings, setPeople, setSettings 
           setReady(true);
           unsubSettings = subscribeSettings(uid, (cs) => {
             const full = { ...DEFAULT_SETTINGS, ...cs };
+            if (synced.current?.settings === stable(full)) return; // autre champ du compte modifié (ex. notifications)
             if (synced.current) synced.current.settings = stable(full);
             setSettings(full);
           });
@@ -86,6 +88,21 @@ export function useCloudSync({ loaded, people, settings, setPeople, setSettings 
     const sj = stable(settings);
     if (sj !== s.settings) { s.settings = sj; putSettings(user.uid, settings).catch(warn); }
   }, [people, settings, user]);
+
+  // Planning des rappels pour le serveur de notifications (mis à jour quand la liste ou les réglages changent).
+  const lastPlan = useRef('');
+  useEffect(() => { lastPlan.current = ''; }, [user?.uid]);
+  useEffect(() => {
+    if (!user || !ready) return;
+    const t = setTimeout(() => {
+      const plan = planReminders(people, settings, new Date(), { max: 300, perRule: 2 });
+      const json = JSON.stringify(plan);
+      if (json === lastPlan.current) return;
+      lastPlan.current = json;
+      putPushPlan(user.uid, plan).catch(warn);
+    }, 2000);
+    return () => clearTimeout(t);
+  }, [people, settings, user, ready]);
 
   /** Déconnexion : on coupe la synchro AVANT de vider l'écran, pour ne rien effacer en ligne. */
   const logout = useCallback(async () => {

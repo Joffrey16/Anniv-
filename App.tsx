@@ -24,10 +24,18 @@ import AuthScreen from './src/screens/AuthScreen';
 import AccountSheet from './src/components/AccountSheet';
 import { cloudEnabled } from './src/cloud';
 import { useCloudSync } from './src/useCloudSync';
+import { disablePush, refreshPush } from './src/push';
 
 const LOCAL_MODE_KEY = 'anniv.localmode';
 
 type Tab = 'home' | 'import' | 'reminders';
+type OpenRequest = { id: string; wish: boolean };
+
+/** Lien ouvert depuis une notification : #fiche=<id> ou #souhaiter=<id>. */
+function openRequestFrom(url: string): OpenRequest | null {
+  const m = /#(fiche|souhaiter)=([^&]+)/.exec(url);
+  return m ? { id: decodeURIComponent(m[2]), wish: m[1] === 'souhaiter' } : null;
+}
 
 export default function App() {
   const [people, setPeople] = useState<Person[]>([]);
@@ -43,6 +51,7 @@ export default function App() {
   const [incoming, setIncoming] = useState<{ from?: string; list: ImportCandidate[]; link: string } | null>(null);
   const [localMode, setLocalMode] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
+  const [openReq, setOpenReq] = useState<OpenRequest | null>(null);
   const { user, logout } = useCloudSync({ loaded, people, settings, setPeople, setSettings });
 
   useEffect(() => {
@@ -54,6 +63,11 @@ export default function App() {
       setLoaded(true);
       // Lien de partage ouvert (version web) : #partage=…
       if (typeof window !== 'undefined' && window.location?.hash) {
+        const req = openRequestFrom(window.location.hash);
+        if (req) {
+          setOpenReq(req);
+          window.history.replaceState(null, '', window.location.pathname + window.location.search);
+        }
         const code = shareCodeFromUrl(window.location.href);
         const shared = code ? decodeShare(code) : null;
         if (shared) {
@@ -81,6 +95,39 @@ export default function App() {
     });
     return () => sub.remove();
   }, [people, settings, loaded]);
+
+  // Version web : toucher une notification alors que l'app est déjà ouverte.
+  useEffect(() => {
+    if (typeof navigator === 'undefined' || !navigator.serviceWorker) return;
+    const onMsg = (e: MessageEvent) => {
+      if (e.data?.type !== 'anniv-open') return;
+      const req = openRequestFrom(String(e.data.url ?? ''));
+      if (req) setOpenReq(req);
+    };
+    const onHash = () => {
+      const req = openRequestFrom(window.location.hash);
+      if (!req) return;
+      setOpenReq(req);
+      window.history.replaceState(null, '', window.location.pathname + window.location.search);
+    };
+    navigator.serviceWorker.addEventListener('message', onMsg);
+    window.addEventListener('hashchange', onHash);
+    return () => { navigator.serviceWorker.removeEventListener('message', onMsg); window.removeEventListener('hashchange', onHash); };
+  }, []);
+
+  // Ouvre la fiche (ou le message) dès que la personne est chargée.
+  useEffect(() => {
+    if (!openReq) return;
+    const p = people.find((x) => x.id === openReq.id);
+    if (!p) return;
+    setOpenReq(null);
+    setTab('home');
+    if (openReq.wish) setWishFor(p);
+    else setDetailId(p.id);
+  }, [openReq, people]);
+
+  // Abonnement aux notifications : renvoyé au compte s'il a changé.
+  useEffect(() => { if (user) refreshPush(user.uid).catch(() => undefined); }, [user?.uid]);
 
   // Toucher une notification ouvre la fiche de la personne.
   useEffect(() => {
@@ -123,6 +170,8 @@ export default function App() {
   const askLogin = () => { setAccountOpen(false); setLocalMode(false); AsyncStorage.removeItem(LOCAL_MODE_KEY); };
   const doLogout = async () => {
     setAccountOpen(false);
+    // Ce téléphone ne doit plus recevoir les rappels de ce compte.
+    if (user) await disablePush(user.uid).catch(() => undefined);
     await logout();
     // Le téléphone est vidé : les anniversaires restent dans le compte.
     setPeople([]);
@@ -150,7 +199,7 @@ export default function App() {
           {tab === 'home' && <HomeScreen people={people} onOpen={openPerson} onAdd={openNew} onImport={() => setTab('import')} onWish={setWishFor} onAccount={() => setAccountOpen(true)} account={user ? 'cloud' : 'local'} showAccount={cloudEnabled} />}
           {tab === 'import' && <ImportScreen people={people} onImport={importMany} onRestore={(list) => setPeople((prev) => [...prev, ...list])} incoming={incoming} onIncomingDone={() => setIncoming(null)} />}
           {tab === 'reminders' && (
-            <RemindersScreen people={people} settings={settings} onChange={setSettings} permission={permission}
+            <RemindersScreen people={people} settings={settings} onChange={setSettings} permission={permission} uid={user?.uid ?? null} cloud={cloudEnabled}
               onAskPermission={async () => setPermission(await ensurePermission())} />
           )}
         </View>
