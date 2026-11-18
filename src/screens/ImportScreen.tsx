@@ -9,7 +9,8 @@ import { Card, GradientButton, SectionTitle } from '../components/ui';
 import { newId } from '../storage';
 import { isIOS, isStandaloneWeb, isWeb } from '../platform';
 import { exportBackup } from '../webCalendar';
-import { buildShareLink, decodeShare, shareCodeFromUrl, WEB_APP_URL } from '../share';
+import { decodeShare, shareCodeFromUrl, WEB_APP_URL } from '../share';
+import { sharePeopleLink } from '../shareActions';
 import { sortByUpcoming } from '../dates';
 import * as Clipboard from 'expo-clipboard';
 
@@ -56,21 +57,8 @@ export default function ImportScreen({ people, onImport, onRestore, incoming, on
 
   const sendShare = async () => {
     const chosen = people.filter((p) => selected.has(p.id));
-    const appUrl = isWeb ? window.location.href.split('#')[0] : WEB_APP_URL;
-    const link = buildShareLink(chosen, appUrl);
-    const message = `🎂 Je te partage ${chosen.length} anniversaire${chosen.length > 1 ? 's' : ''} pour l'app Anniv ! Ouvre ce lien et choisis qui ajouter :\n${link}`;
     setSharing(false);
-    try {
-      if (isWeb) {
-        if (navigator.share) { await navigator.share({ text: message }); return; }
-        await Clipboard.setStringAsync(message);
-        setMsg('Lien copié ✅ Colle-le dans un message.');
-        return;
-      }
-      await Share.share({ message });
-    } catch {
-      // partage annulé
-    }
+    if ((await sharePeopleLink(chosen)) === 'copie') setMsg('Lien copié ✅ Colle-le dans un message.');
   };
 
   const shareApp = async () => {

@@ -100,3 +100,25 @@ test('lien de partage', () => {
   assert.ok(!link.includes('secret')); // les idées cadeau ne sont pas partagées
   assert.equal(decodeShare('nimportequoi'), null);
 });
+
+import { ageLabel, eventTitle, giftBudget, isMilestone, trackFor, zodiac } from '../src/insights.ts';
+import { randomWish } from '../src/wishes.ts';
+
+test('signes, âges ronds, libellés', () => {
+  assert.equal(zodiac(10, 1).name, 'Capricorne');
+  assert.equal(zodiac(20, 1).name, 'Verseau');
+  assert.equal(zodiac(21, 3).name, 'Bélier');
+  assert.equal(zodiac(22, 11).name, 'Sagittaire');
+  assert.equal(zodiac(25, 12).name, 'Capricorne');
+  assert.ok(isMilestone(30) && isMilestone(18) && !isMilestone(31));
+  const base = { id: '1', name: 'Léa & Tom', day: 1, month: 6, relation: 'famille' as const, emoji: '', giftNeeded: false };
+  assert.equal(eventTitle({ ...base, kind: 'couple' }), 'Anniversaire de Léa & Tom');
+  assert.equal(ageLabel({ ...base, kind: 'couple' }, 5), '5 ans ensemble');
+  assert.equal(ageLabel({ ...base, kind: 'fete' }, 5), '');
+  assert.equal(eventTitle({ ...base, kind: 'fete' }), 'Fête de Léa & Tom');
+  const now = new Date(2026, 10, 18);
+  assert.deepEqual(trackFor({ ...base, track: { '2027': { wished: true } } }, now), { wished: true });
+  assert.deepEqual(giftBudget([{ ...base, gifts: [{ id: 'a', year: 2026, text: 'Livre', price: 20 }, { id: 'b', year: 2025, text: 'x', price: 99 }] }], 2026), { total: 20, count: 1 });
+  const w = randomWish('anniversaire', 'drole');
+  assert.ok(w.includes('{prenom}'));
+});

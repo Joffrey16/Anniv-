@@ -1,6 +1,7 @@
 import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { nextBirthday, upcomingAge } from './dates';
+import { ageLabel, eventTitle, kindOf, openIdeasText } from './insights';
 import { Person, ReminderRule, Settings } from './types';
 
 // iOS limite à 64 notifications programmées : on garde les plus proches
@@ -66,17 +67,21 @@ function fireDate(p: Person, rule: ReminderRule, now: Date): Date {
 
 function message(p: Person, rule: ReminderRule, now: Date) {
   const age = upcomingAge(p, now);
-  const ageTxt = age ? ` (${age} ans)` : '';
+  const al = ageLabel(p, age);
+  const ageTxt = al ? ` (${al})` : '';
+  const title = eventTitle(p);
   const when = rule.daysBefore === 0 ? "aujourd'hui" : rule.daysBefore === 1 ? 'demain' : `dans ${rule.daysBefore} jours`;
+  const ideas = openIdeasText(p);
   if (rule.kind === 'cadeau') {
     return {
       title: `🎁 Cadeau pour ${p.name}`,
-      body: `Son anniversaire est ${when}${ageTxt}.${p.giftIdeas ? ` Idées : ${p.giftIdeas}` : ' Pense à trouver un cadeau !'}`,
+      body: `${title} ${when}${ageTxt}.${ideas ? ` Idées : ${ideas}` : ' Pense à trouver un cadeau !'}`,
     };
   }
+  const emoji = kindOf(p) === 'fete' ? '🌸' : kindOf(p) === 'couple' ? '💍' : '🎂';
   return {
-    title: rule.daysBefore === 0 ? `🎂 C'est l'anniversaire de ${p.name} !` : `🎂 Anniversaire de ${p.name} ${when}`,
-    body: rule.daysBefore === 0 ? `Touche ici pour lui envoyer ton message${ageTxt} 🎉` : `Prépare un petit mot${ageTxt}.`,
+    title: rule.daysBefore === 0 ? `${emoji} ${title}, c'est aujourd'hui !` : `${emoji} ${title} ${when}`,
+    body: rule.daysBefore === 0 ? `Touche ici pour envoyer ton message${ageTxt} 🎉` : `Prépare un petit mot${ageTxt}.`,
   };
 }
 

@@ -3,7 +3,8 @@ import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleShee
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { daysInMonth, MONTHS_SHORT } from '../dates';
 import { colors, EMOJIS, relationMeta } from '../theme';
-import { Person, Relation } from '../types';
+import { EventKind, Person, Relation } from '../types';
+import { ideasOf, KIND_META } from '../insights';
 import { Chip, GhostButton, GradientButton, SectionTitle, Toggle } from '../components/ui';
 import { newId } from '../storage';
 import { snapUsername } from '../message';
@@ -27,7 +28,9 @@ function Form({ initial, onClose, onSave, onDelete, onWish }: Props) {
   const [relation, setRelation] = useState<Relation>(initial?.relation ?? 'ami');
   const [emoji, setEmoji] = useState(initial?.emoji ?? '🎂');
   const [giftNeeded, setGiftNeeded] = useState(initial?.giftNeeded ?? true);
-  const [giftIdeas, setGiftIdeas] = useState(initial?.giftIdeas ?? '');
+  const [newIdea, setNewIdea] = useState('');
+  const [kind, setKind] = useState<EventKind>(initial?.kind ?? 'anniversaire');
+  const [label, setLabel] = useState(initial?.label ?? '');
   const [notes, setNotes] = useState(initial?.notes ?? '');
   const [phone, setPhone] = useState(initial?.phone ?? '');
   const [messenger, setMessenger] = useState(initial?.messenger ?? '');
@@ -38,14 +41,21 @@ function Form({ initial, onClose, onSave, onDelete, onWish }: Props) {
   const yearOk = !year || (yearNum! > 1900 && yearNum! <= new Date().getFullYear());
   const valid = name.trim().length > 0 && day && month && day <= maxDay && yearOk;
 
-  const build = (): Person => ({
+  const build = (): Person => {
+    const ideas = initial ? ideasOf(initial) : [];
+    const idea = newIdea.trim();
+    return {
+      ...(initial ?? {}),
       id: initial?.id ?? newId(),
-      name: name.trim(), day: day!, month: month!, year: yearNum,
-      relation, emoji, giftNeeded, giftIdeas: giftIdeas.trim() || undefined, notes: notes.trim() || undefined,
+      name: name.trim(), day: day!, month: month!, year: kind === 'fete' ? undefined : yearNum,
+      kind: kind === 'anniversaire' ? undefined : kind, label: kind === 'autre' ? label.trim() || undefined : undefined,
+      relation, emoji, giftNeeded, notes: notes.trim() || undefined,
+      giftIdeas: undefined, ideas: idea ? [...ideas, { id: newId(), text: idea }] : initial?.ideas ?? (ideas.length ? ideas : undefined),
       phone: phone.trim() || undefined, messenger: messenger.trim().replace(/^@/, '') || undefined, snapchat: snapUsername(snapchat) ?? (snapchat.trim() || undefined),
       preferredChannel: initial?.preferredChannel,
       source: initial?.source ?? 'manuel',
-  });
+    };
+  };
   const save = () => { if (valid) onSave(build()); };
 
   return (
@@ -69,6 +79,16 @@ function Form({ initial, onClose, onSave, onDelete, onWish }: Props) {
             ))}
           </ScrollView>
 
+          <SectionTitle>Quoi ?</SectionTitle>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+            {(Object.keys(KIND_META) as EventKind[]).map((k) => (
+              <Chip key={k} label={`${KIND_META[k].emoji} ${KIND_META[k].label}`} active={kind === k} onPress={() => setKind(k)} color={colors.violet} />
+            ))}
+          </View>
+          {kind === 'autre' && (
+            <TextInput value={label} onChangeText={setLabel} placeholder="Nom de l'événement (ex. Arrivée de Pipou 🐶)" placeholderTextColor={colors.muted} style={styles.input} />
+          )}
+
           <SectionTitle>Mois</SectionTitle>
           <View style={styles.grid}>
             {MONTHS_SHORT.map((m, i) => (
@@ -90,8 +110,8 @@ function Form({ initial, onClose, onSave, onDelete, onWish }: Props) {
             })}
           </View>
 
-          <SectionTitle>Année de naissance (facultatif)</SectionTitle>
-          <TextInput value={year} onChangeText={(t) => setYear(t.replace(/\D/g, '').slice(0, 4))} placeholder="ex. 1994 — pour afficher l'âge" placeholderTextColor={colors.muted} keyboardType="number-pad" style={[styles.input, !yearOk && { borderColor: colors.coral }]} />
+          {kind !== 'fete' && <SectionTitle>{kind === 'couple' ? 'Année du mariage / de la rencontre (facultatif)' : kind === 'autre' ? 'Année de départ (facultatif)' : 'Année de naissance (facultatif)'}</SectionTitle>}
+          {kind !== 'fete' && <TextInput value={year} onChangeText={(t) => setYear(t.replace(/\D/g, '').slice(0, 4))} placeholder="ex. 1994 — pour afficher l'âge" placeholderTextColor={colors.muted} keyboardType="number-pad" style={[styles.input, !yearOk && { borderColor: colors.coral }]} />}
 
           <SectionTitle>C'est qui ?</SectionTitle>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
@@ -109,7 +129,7 @@ function Form({ initial, onClose, onSave, onDelete, onWish }: Props) {
             <Toggle value={giftNeeded} onChange={setGiftNeeded} />
           </View>
           {giftNeeded && (
-            <TextInput value={giftIdeas} onChangeText={setGiftIdeas} placeholder="Idées cadeau (livre, resto, vinyle…)" placeholderTextColor={colors.muted} style={[styles.input, { marginTop: 10 }]} />
+            <TextInput value={newIdea} onChangeText={setNewIdea} placeholder={initial && ideasOf(initial).length ? `＋ Nouvelle idée (${ideasOf(initial).length} déjà dans la fiche)` : 'Une idée cadeau ? (livre, resto, vinyle…)'} placeholderTextColor={colors.muted} style={[styles.input, { marginTop: 10 }]} />
           )}
 
           <SectionTitle>Pour lui écrire</SectionTitle>

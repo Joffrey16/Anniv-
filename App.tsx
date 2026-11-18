@@ -9,6 +9,10 @@ import ImportScreen from './src/screens/ImportScreen';
 import RemindersScreen from './src/screens/RemindersScreen';
 import PersonEditor from './src/screens/PersonEditor';
 import WishSheet from './src/components/WishSheet';
+import CardSheet from './src/components/CardSheet';
+import PersonDetail from './src/screens/PersonDetail';
+import { sharePeopleLink } from './src/shareActions';
+import { currentYearKey, trackFor } from './src/insights';
 import { DEFAULT_SETTINGS, loadPeople, loadSettings, savePeople, saveSettings } from './src/storage';
 import { ensurePermission, notificationsSupported, rescheduleAll } from './src/notifications';
 import { colors, gradients, shadow } from './src/theme';
@@ -32,6 +36,8 @@ export default function App() {
   const [tab, setTab] = useState<Tab>('home');
   const [editing, setEditing] = useState<Person | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
+  const [detailId, setDetailId] = useState<string | null>(null);
+  const [cardFor, setCardFor] = useState<Person | null>(null);
   const [permission, setPermission] = useState(false);
   const [wishFor, setWishFor] = useState<Person | null>(null);
   const [incoming, setIncoming] = useState<{ from?: string; list: ImportCandidate[]; link: string } | null>(null);
@@ -84,16 +90,26 @@ export default function App() {
       const p = people.find((x) => x.id === personId);
       if (!p) return;
       if (kind === 'souhaiter') setWishFor(p);
-      else { setEditing(p); setEditorOpen(true); }
+      else setDetailId(p.id);
     });
     return () => sub.remove();
   }, [people]);
 
   const openNew = () => { setEditing(null); setEditorOpen(true); };
-  const openPerson = (p: Person) => { setEditing(p); setEditorOpen(true); };
+  const openPerson = (p: Person) => setDetailId(p.id);
+  const detailPerson = detailId ? people.find((x) => x.id === detailId) ?? null : null;
+  const updatePerson = (p: Person) => setPeople((prev) => prev.map((x) => (x.id === p.id ? p : x)));
+  const editFromDetail = (p: Person) => { setDetailId(null); setTimeout(() => { setEditing(p); setEditorOpen(true); }, 350); };
+  const markWished = (p: Person, channel: Person['preferredChannel']) => setPeople((prev) => prev.map((x) => {
+    if (x.id !== p.id) return x;
+    const key = currentYearKey(x);
+    return { ...x, preferredChannel: channel, track: { ...(x.track ?? {}), [key]: { ...trackFor(x), wished: true } } };
+  }));
   const save = (p: Person) => {
+    const existing = people.some((x) => x.id === p.id);
     setPeople((prev) => (prev.some((x) => x.id === p.id) ? prev.map((x) => (x.id === p.id ? p : x)) : [...prev, p]));
     setEditorOpen(false);
+    if (existing) setTimeout(() => setDetailId(p.id), 350); // retour à la fiche après modification
   };
   const remove = (id: string) => { setPeople((prev) => prev.filter((x) => x.id !== id)); setEditorOpen(false); };
   const importMany = useCallback((list: Person[], phones: { name: string; phone: string }[]) => setPeople((prev) => {
@@ -150,10 +166,13 @@ export default function App() {
           <TabBtn icon="🔔" label="Rappels" active={tab === 'reminders'} onPress={() => setTab('reminders')} />
         </View>
 
+        <PersonDetail person={detailPerson} onClose={() => setDetailId(null)} onChange={updatePerson} onEdit={editFromDetail}
+          onWish={setWishFor} onCard={setCardFor} onShare={(p) => { sharePeopleLink([p]); }} />
         <PersonEditor visible={editorOpen} initial={editing} onClose={() => setEditorOpen(false)} onSave={save} onDelete={remove} onWish={wish} />
         <AccountSheet visible={accountOpen} email={user?.email ?? null} cloudEnabled={cloudEnabled} onClose={() => setAccountOpen(false)} onLogout={doLogout} onLogin={askLogin} />
         <WishSheet person={wishFor} template={settings.wishTemplate} onClose={() => setWishFor(null)}
-          onUsed={(p, channel) => setPeople((prev) => prev.map((x) => (x.id === p.id ? { ...x, preferredChannel: channel } : x)))} />
+          onUsed={markWished} />
+        {cardFor && <CardSheet person={cardFor} onClose={() => setCardFor(null)} />}
       </SafeAreaView>
     </SafeAreaProvider>
   );

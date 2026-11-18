@@ -2,6 +2,7 @@
 // Utile surtout pour la version web : c'est le Calendrier de l'iPhone qui envoie les alertes.
 import { nextBirthday } from './dates.ts';
 import type { Person, Settings } from './types';
+import { eventTitle, openIdeasText } from './insights.ts';
 
 const pad = (n: number) => String(n).padStart(2, '0');
 const ymd = (d: Date) => `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}`;
@@ -33,15 +34,16 @@ export function buildIcs(people: Person[], settings: Settings, now = new Date())
   for (const p of people) {
     const start = nextBirthday(p, now);
     const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 1);
-    const desc = [p.year ? `Né·e en ${p.year}` : '', p.giftIdeas ? `Idées cadeau : ${p.giftIdeas}` : '', p.notes ?? ''].filter(Boolean).join('\n');
+    const ideas = openIdeasText(p);
+    const desc = [p.year ? `Depuis ${p.year}` : '', ideas ? `Idées cadeau : ${ideas}` : '', p.notes ?? ''].filter(Boolean).join('\n');
     lines.push('BEGIN:VEVENT', `UID:anniv-${p.id}@anniv.app`, `DTSTAMP:${stamp}`,
       `DTSTART;VALUE=DATE:${ymd(start)}`, `DTEND;VALUE=DATE:${ymd(end)}`,
       // 29 février : on répète au 29 (le calendrier l'affiche les années bissextiles).
-      'RRULE:FREQ=YEARLY', `SUMMARY:${esc(`🎂 Anniversaire de ${p.name}`)}`, 'TRANSP:TRANSPARENT');
+      'RRULE:FREQ=YEARLY', `SUMMARY:${esc(`${p.kind === 'fete' ? '🌸' : p.kind === 'couple' ? '💍' : '🎂'} ${eventTitle(p)}`)}`, 'TRANSP:TRANSPARENT');
     if (desc) lines.push(`DESCRIPTION:${esc(desc)}`);
     for (const r of settings.reminders) {
       if (!r.enabled || (r.kind === 'cadeau' && !p.giftNeeded)) continue;
-      const text = r.kind === 'cadeau' ? `🎁 Cadeau pour ${p.name}` : `🎂 Souhaiter l'anniversaire de ${p.name}`;
+      const text = r.kind === 'cadeau' ? `🎁 Cadeau pour ${p.name}` : `🎉 Souhaiter : ${eventTitle(p)}`;
       lines.push('BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:${esc(text)}`, `TRIGGER:${alarmTrigger(r.daysBefore, r.hour, r.minute)}`, 'END:VALARM');
     }
     lines.push('END:VEVENT');

@@ -3,6 +3,8 @@ import { KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text, Tex
 import { buildMessage } from '../message';
 import { Channel, sendWish } from '../messaging';
 import { upcomingAge } from '../dates';
+import { kindOf, eventTitle } from '../insights';
+import { defaultToneFor, randomWish, Tone, TONES } from '../wishes';
 import { colors } from '../theme';
 import { Person } from '../types';
 
@@ -20,13 +22,29 @@ const CHANNELS: { id: Channel; label: string; icon: string; color: string; prefi
 export default function WishSheet({ person, template, onClose, onUsed }: Props) {
   const [text, setText] = useState('');
   const [info, setInfo] = useState<string | null>(null);
+  const [tone, setTone] = useState<Tone | 'perso'>('perso');
 
   useEffect(() => {
     if (person) {
-      setText(buildMessage(template, person, upcomingAge(person)));
+      // Fête / couple : on part d'un message adapté plutôt que du modèle d'anniversaire.
+      const k = kindOf(person);
+      if (k === 'anniversaire') { setTone('perso'); setText(buildMessage(template, person, upcomingAge(person))); }
+      else { setTone(defaultToneFor(person.relation)); setText(buildMessage(randomWish(k, 'classique'), person, upcomingAge(person))); }
       setInfo(null);
     }
   }, [person, template]);
+
+  const pickTone = (t: Tone | 'perso') => {
+    if (!person) return;
+    setTone(t);
+    setText(t === 'perso' ? buildMessage(template, person, upcomingAge(person)) : buildMessage(randomWish(kindOf(person), t), person, upcomingAge(person)));
+  };
+  const reroll = () => {
+    if (!person) return;
+    const t = tone === 'perso' ? defaultToneFor(person.relation) : tone;
+    setTone(t);
+    setText((cur) => buildMessage(randomWish(kindOf(person), t, cur), person, upcomingAge(person)));
+  };
 
   if (!person) return null;
 
@@ -56,7 +74,16 @@ export default function WishSheet({ person, template, onClose, onUsed }: Props) 
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={styles.sheet}>
           <View style={styles.grab} />
-          <Text style={styles.title}>🎉 Souhaiter à {person.name}</Text>
+          <Text style={styles.title}>🎉 {eventTitle(person)}</Text>
+          <View style={styles.tones}>
+            {kindOf(person) === 'anniversaire' && (
+              <Pressable onPress={() => pickTone('perso')} style={[styles.tone, tone === 'perso' && styles.toneOn]}><Text style={styles.toneTxt}>✍️ Le mien</Text></Pressable>
+            )}
+            {kindOf(person) === 'anniversaire' && TONES.map((t) => (
+              <Pressable key={t.id} onPress={() => pickTone(t.id)} style={[styles.tone, tone === t.id && styles.toneOn]}><Text style={styles.toneTxt}>{t.label}</Text></Pressable>
+            ))}
+            <Pressable onPress={reroll} style={[styles.tone, { borderColor: colors.violet }]}><Text style={styles.toneTxt}>🎲 Autre idée</Text></Pressable>
+          </View>
           <TextInput value={text} onChangeText={setText} multiline style={styles.input} />
           {!person.phone && <Text style={styles.hint}>Astuce : ajoute son numéro dans sa fiche pour ouvrir directement sa conversation SMS ou WhatsApp.</Text>}
           {info && <View style={styles.info}><Text style={styles.infoTxt}>{info}</Text></View>}
@@ -79,7 +106,11 @@ const styles = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: 'rgba(43,29,46,0.35)' },
   sheet: { backgroundColor: colors.bg, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 20, paddingBottom: 36 },
   grab: { width: 40, height: 5, borderRadius: 3, backgroundColor: colors.line, alignSelf: 'center', marginBottom: 14 },
-  title: { fontSize: 20, fontWeight: '900', color: colors.ink, marginBottom: 12 },
+  title: { fontSize: 20, fontWeight: '900', color: colors.ink, marginBottom: 10 },
+  tones: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 10 },
+  tone: { paddingVertical: 6, paddingHorizontal: 10, borderRadius: 999, borderWidth: 1.5, borderColor: colors.line, backgroundColor: '#fff' },
+  toneOn: { borderColor: colors.coral, backgroundColor: colors.soft },
+  toneTxt: { fontWeight: '700', color: colors.ink, fontSize: 13 },
   input: { backgroundColor: '#fff', borderRadius: 18, borderWidth: 1.5, borderColor: colors.line, padding: 14, fontSize: 15, color: colors.ink, minHeight: 96, textAlignVertical: 'top' },
   hint: { color: colors.muted, fontSize: 13, marginTop: 8 },
   info: { backgroundColor: '#E2F8F3', borderRadius: 14, padding: 12, marginTop: 10 },
