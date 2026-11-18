@@ -4,14 +4,14 @@
 import { cert, initializeApp } from 'firebase-admin/app';
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import * as webpush from 'web-push';
-import { vapidKeys } from './vapid.mjs';
+import { parseServiceAccount, vapidKeys } from './vapid.mjs';
 
 const SITE = process.env.SITE_URL || 'https://joffrey16.github.io/Anniv-/';
 const MAX_LATE = 6 * 3600e3; // un rappel en retard de plus de 6 h n'est plus envoyé
 const PUSH_HOSTS = /(^|\.)(push\.apple\.com|googleapis\.com|mozilla\.com|mozaws\.net|notify\.windows\.com)$/;
 
 const saJson = process.env.FIREBASE_SERVICE_ACCOUNT;
-const sa = JSON.parse(saJson);
+const sa = parseServiceAccount(saJson);
 initializeApp({ credential: cert(sa), projectId: sa.project_id });
 const db = getFirestore();
 const { publicKey, privateKey } = vapidKeys(saJson);
