@@ -2,7 +2,7 @@
 import { Platform } from 'react-native';
 import { initializeApp } from 'firebase/app';
 import {
-  Auth, connectAuthEmulator, createUserWithEmailAndPassword, GoogleAuthProvider, onAuthStateChanged, sendPasswordResetEmail,
+  Auth, connectAuthEmulator, createUserWithEmailAndPassword, EmailAuthProvider, GoogleAuthProvider, linkWithCredential, onAuthStateChanged, sendPasswordResetEmail,
   signInWithEmailAndPassword, signInWithPopup, signOut, User,
 } from 'firebase/auth';
 import {
@@ -50,6 +50,16 @@ export async function signInWithGoogle() {
   return signInWithPopup(auth, provider);
 }
 
+/** Le compte a-t-il un mot de passe (sinon : créé avec Google uniquement) ? */
+export const hasPassword = (u: User | null | undefined) => Boolean(u?.providerData.some((p) => p.providerId === 'password'));
+
+/** Ajoute un mot de passe à un compte Google : même compte, utilisable dans l'app installée sur iPhone. */
+export async function addPassword(password: string) {
+  const u = auth?.currentUser;
+  if (!u?.email) throw new Error('cloud-off');
+  await linkWithCredential(u, EmailAuthProvider.credential(u.email, password));
+}
+
 export const resetPassword = (email: string) => (auth ? sendPasswordResetEmail(auth, email.trim()) : Promise.reject(new Error('cloud-off')));
 export const logOut = () => (auth ? signOut(auth) : Promise.resolve());
 
@@ -71,6 +81,9 @@ export function authErrorMessage(e: unknown): string {
     'auth/unauthorized-domain': "La connexion Google n'est pas encore autorisée pour ce site.",
     'auth/account-exists-with-different-credential': 'Un compte existe déjà avec cet e-mail : connecte-toi avec ton mot de passe.',
     'auth/internal-error': "La connexion Google n'a pas pu s'ouvrir. Réessaie, ou connecte-toi avec ton e-mail.",
+    'auth/requires-recent-login': 'Par sécurité, déconnecte-toi, reconnecte-toi avec Google, puis réessaie.',
+    'auth/provider-already-linked': 'Ce compte a déjà un mot de passe.',
+    'auth/credential-already-in-use': 'Cet e-mail est déjà utilisé par un autre compte.',
     'auth/cancelled-popup-request': '',
     'auth/popup-closed-by-user': '',
   };

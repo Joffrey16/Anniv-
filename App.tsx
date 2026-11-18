@@ -22,7 +22,7 @@ import { toCandidates } from './src/importers';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import AuthScreen from './src/screens/AuthScreen';
 import AccountSheet from './src/components/AccountSheet';
-import { cloudEnabled } from './src/cloud';
+import { cloudEnabled, hasPassword } from './src/cloud';
 import { useCloudSync } from './src/useCloudSync';
 import { disablePush, refreshPush } from './src/push';
 
@@ -218,7 +218,7 @@ export default function App() {
         <PersonDetail person={detailPerson} onClose={() => setDetailId(null)} onChange={updatePerson} onEdit={editFromDetail}
           onWish={setWishFor} onCard={setCardFor} onShare={(p) => { sharePeopleLink([p]); }} />
         <PersonEditor visible={editorOpen} initial={editing} onClose={() => setEditorOpen(false)} onSave={save} onDelete={remove} onWish={wish} />
-        <AccountSheet visible={accountOpen} email={user?.email ?? null} cloudEnabled={cloudEnabled} onClose={() => setAccountOpen(false)} onLogout={doLogout} onLogin={askLogin} />
+        <AccountSheet visible={accountOpen} email={user?.email ?? null} cloudEnabled={cloudEnabled} hasPassword={hasPassword(user)} onClose={() => setAccountOpen(false)} onLogout={doLogout} onLogin={askLogin} />
         <WishSheet person={wishFor} template={settings.wishTemplate} onClose={() => setWishFor(null)}
           onUsed={markWished} />
         {cardFor && <CardSheet person={cardFor} onClose={() => setCardFor(null)} />}

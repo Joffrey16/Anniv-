@@ -2,11 +2,14 @@ import React, { useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { authErrorMessage, resetPassword, signIn, signInWithGoogle } from '../cloud';
-import { isWeb } from '../platform';
+import { isIOS, isStandaloneWeb, isWeb } from '../platform';
 import { colors, gradients, shadow } from '../theme';
 import { GradientButton } from '../components/ui';
 
 type Props = { onSkip: () => void; localCount: number };
+
+// Dans l'app installée sur iPhone, la fenêtre Google perd sa session (« missing initial state ») : on passe par l'e-mail.
+const googleBroken = isIOS && isStandaloneWeb;
 
 export default function AuthScreen({ onSkip, localCount }: Props) {
   const [mode, setMode] = useState<'create' | 'login'>('create');
@@ -44,7 +47,7 @@ export default function AuthScreen({ onSkip, localCount }: Props) {
     if (!email.trim()) { setError("Indique d'abord ton e-mail ci-dessus."); return; }
     try {
       await resetPassword(email);
-      setInfo('E-mail envoyé 📩 Suis le lien reçu pour choisir un nouveau mot de passe.');
+      setInfo('E-mail envoyé 📩 Suis le lien reçu pour choisir ton mot de passe (regarde aussi dans les spams), puis reviens ici te connecter.');
     } catch (e) {
       setError(authErrorMessage(e));
     }
@@ -60,7 +63,16 @@ export default function AuthScreen({ onSkip, localCount }: Props) {
         </LinearGradient>
 
         <View style={styles.card}>
-          {isWeb && (
+          {googleBroken && (
+            <View style={styles.iosNote}>
+              <Text style={styles.iosNoteTxt}>
+                <Text style={{ fontWeight: '900' }}>Compte créé avec Google ?</Text> Dans l'app installée, Google ne s'ouvre pas sur iPhone.
+                Touche « Se connecter », entre ton adresse Gmail puis « Mot de passe oublié ? » : tu recevras un lien pour créer un mot de passe.
+                C'est le même compte, avec tous tes anniversaires.
+              </Text>
+            </View>
+          )}
+          {isWeb && !googleBroken && (
             <>
               <Pressable onPress={google} disabled={busy} style={({ pressed }) => [styles.google, pressed && { opacity: 0.7 }]}>
                 <Text style={styles.gLogo}><Text style={{ color: '#4285F4' }}>G</Text></Text>
@@ -117,6 +129,8 @@ const styles = StyleSheet.create({
   title: { color: '#fff', fontSize: 40, fontWeight: '900', letterSpacing: -1, marginTop: 4 },
   sub: { color: 'rgba(255,255,255,0.92)', fontSize: 16, fontWeight: '600', marginTop: 4 },
   card: { backgroundColor: '#fff', marginHorizontal: 20, marginTop: -36, borderRadius: 26, padding: 20, ...shadow },
+  iosNote: { backgroundColor: '#F1ECFF', borderRadius: 16, padding: 14, marginBottom: 16 },
+  iosNoteTxt: { color: '#4B3A8C', fontSize: 14, lineHeight: 20 },
   google: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: colors.line, borderRadius: 16, paddingVertical: 13, backgroundColor: '#fff' },
   gLogo: { fontSize: 20, fontWeight: '900', marginRight: 10 },
   googleTxt: { fontSize: 16, fontWeight: '800', color: colors.ink },
