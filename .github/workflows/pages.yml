@@ -35,6 +35,17 @@ jobs:
             echo "EXPO_PUBLIC_VAPID_KEY=$KEY" >> "$GITHUB_ENV"
             echo "Clé publique des notifications : ${KEY:0:12}…"
           fi
+      # ID client Google (public), pour la connexion Google dans l'app installée sur iPhone.
+      - name: ID client Google
+        continue-on-error: true
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -n "$FIREBASE_SERVICE_ACCOUNT" ]; then
+            ID=$(node push/google-client-id.mjs)
+            echo "EXPO_PUBLIC_GOOGLE_CLIENT_ID=$ID" >> "$GITHUB_ENV"
+            echo "ID client Google : $ID"
+          fi
       - run: npm run build:web
         env:
           EXPO_BASE_URL: /${{ github.event.repository.name }}

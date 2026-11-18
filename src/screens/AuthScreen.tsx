@@ -1,15 +1,17 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { authErrorMessage, resetPassword, signIn, signInWithGoogle } from '../cloud';
+import { authErrorMessage, completeGoogleRedirect, googleRedirectAvailable, resetPassword, signIn, signInWithGoogle, startGoogleRedirect } from '../cloud';
 import { isIOS, isStandaloneWeb, isWeb } from '../platform';
 import { colors, gradients, shadow } from '../theme';
 import { GradientButton } from '../components/ui';
 
 type Props = { onSkip: () => void; localCount: number };
 
-// Dans l'app installée sur iPhone, la fenêtre Google perd sa session (« missing initial state ») : on passe par l'e-mail.
-const googleBroken = isIOS && isStandaloneWeb;
+// Dans l'app installée sur iPhone, la fenêtre Google de Firebase perd sa session (« missing initial state ») :
+// on passe par une redirection vers Google si elle est configurée, sinon par l'e-mail.
+const iosApp = isIOS && isStandaloneWeb;
+const googleBroken = iosApp && !googleRedirectAvailable;
 
 export default function AuthScreen({ onSkip, localCount }: Props) {
   const [mode, setMode] = useState<'create' | 'login'>('create');
@@ -30,8 +32,17 @@ export default function AuthScreen({ onSkip, localCount }: Props) {
     }
   };
 
+  // Retour de Google après une redirection.
+  useEffect(() => {
+    setBusy(true);
+    completeGoogleRedirect()
+      .catch((e) => { const m = authErrorMessage(e); if (m) setError(m); })
+      .finally(() => setBusy(false));
+  }, []);
+
   const google = async () => {
     setBusy(true); setError(null); setInfo(null);
+    if (iosApp) { startGoogleRedirect(); return; }
     try {
       await signInWithGoogle();
     } catch (e) {

@@ -3,7 +3,7 @@ import { Platform } from 'react-native';
 import { initializeApp } from 'firebase/app';
 import {
   Auth, connectAuthEmulator, createUserWithEmailAndPassword, EmailAuthProvider, GoogleAuthProvider, linkWithCredential, onAuthStateChanged, sendPasswordResetEmail,
-  signInWithEmailAndPassword, signInWithPopup, signOut, User,
+  signInWithCredential, signInWithEmailAndPassword, signInWithPopup, signOut, User,
 } from 'firebase/auth';
 import {
   collection, connectFirestoreEmulator, deleteDoc, deleteField, doc, Firestore, getDoc, initializeFirestore, memoryLocalCache,
@@ -60,6 +60,51 @@ export async function addPassword(password: string) {
   await linkWithCredential(u, EmailAuthProvider.credential(u.email, password));
 }
 
+// Connexion Google par redirection, sans passer par la fenêtre de Firebase (qui perd sa session
+// dans l'app installée sur iPhone) : on part chez Google, qui revient sur l'app avec un jeton (#id_token=…).
+const GOOGLE_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID ?? '';
+const GOOGLE_KEY = 'anniv.google';
+export const googleRedirectAvailable = Platform.OS === 'web' && GOOGLE_CLIENT_ID.length > 0;
+
+const randomHex = () => Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) => b.toString(16).padStart(2, '0')).join('');
+
+export function startGoogleRedirect() {
+  const state = randomHex();
+  const nonce = randomHex();
+  localStorage.setItem(GOOGLE_KEY, JSON.stringify({ state, nonce }));
+  const q = new URLSearchParams({
+    client_id: GOOGLE_CLIENT_ID,
+    redirect_uri: window.location.origin + window.location.pathname,
+    response_type: 'id_token',
+    scope: 'openid email profile',
+    prompt: 'select_account',
+    state,
+    nonce,
+  });
+  window.location.assign(`https://accounts.google.com/o/oauth2/v2/auth?${q}`);
+}
+
+const authError = (code: string) => Object.assign(new Error(code), { code });
+
+/** Au retour de Google : connecte le compte Firebase avec le jeton reçu. Renvoie false s'il n'y a rien à faire. */
+export async function completeGoogleRedirect(): Promise<boolean> {
+  if (Platform.OS !== 'web' || typeof window === 'undefined' || !auth) return false;
+  const h = new URLSearchParams(window.location.hash.slice(1));
+  if (!h.has('id_token') && !h.has('error')) return false;
+  window.history.replaceState(null, '', window.location.pathname + window.location.search);
+  let saved: { state?: string; nonce?: string } | null = null;
+  try { saved = JSON.parse(localStorage.getItem(GOOGLE_KEY) ?? 'null'); } catch { saved = null; }
+  localStorage.removeItem(GOOGLE_KEY);
+  if (h.has('error')) throw authError(h.get('error') === 'access_denied' ? 'auth/popup-closed-by-user' : 'auth/internal-error');
+  if (!saved || saved.state !== h.get('state')) throw authError('auth/google-state');
+  const idToken = h.get('id_token')!;
+  const part = idToken.split('.')[1] ?? '';
+  const payload = JSON.parse(atob(part.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - (part.length % 4)) % 4)));
+  if (payload.nonce !== saved.nonce) throw authError('auth/google-state');
+  await signInWithCredential(auth, GoogleAuthProvider.credential(idToken));
+  return true;
+}
+
 export const resetPassword = (email: string) => (auth ? sendPasswordResetEmail(auth, email.trim()) : Promise.reject(new Error('cloud-off')));
 export const logOut = () => (auth ? signOut(auth) : Promise.resolve());
 
@@ -84,6 +129,7 @@ export function authErrorMessage(e: unknown): string {
     'auth/requires-recent-login': 'Par sécurité, déconnecte-toi, reconnecte-toi avec Google, puis réessaie.',
     'auth/provider-already-linked': 'Ce compte a déjà un mot de passe.',
     'auth/credential-already-in-use': 'Cet e-mail est déjà utilisé par un autre compte.',
+    'auth/google-state': 'La connexion Google a expiré. Réessaie.',
     'auth/cancelled-popup-request': '',
     'auth/popup-closed-by-user': '',
   };
