@@ -6,6 +6,7 @@ import { colors, EMOJIS, relationMeta } from '../theme';
 import { Person, Relation } from '../types';
 import { Chip, GhostButton, GradientButton, SectionTitle, Toggle } from '../components/ui';
 import { newId } from '../storage';
+import { snapUsername } from '../message';
 
 type Props = { visible: boolean; initial?: Person | null; onClose: () => void; onSave: (p: Person) => void; onDelete: (id: string) => void; onWish: (p: Person) => void };
 
@@ -41,7 +42,7 @@ function Form({ initial, onClose, onSave, onDelete, onWish }: Props) {
       id: initial?.id ?? newId(),
       name: name.trim(), day: day!, month: month!, year: yearNum,
       relation, emoji, giftNeeded, giftIdeas: giftIdeas.trim() || undefined, notes: notes.trim() || undefined,
-      phone: phone.trim() || undefined, messenger: messenger.trim().replace(/^@/, '') || undefined, snapchat: snapchat.trim().replace(/^@/, '') || undefined,
+      phone: phone.trim() || undefined, messenger: messenger.trim().replace(/^@/, '') || undefined, snapchat: snapUsername(snapchat) ?? (snapchat.trim() || undefined),
       preferredChannel: initial?.preferredChannel,
       source: initial?.source ?? 'manuel',
   });
@@ -115,8 +116,11 @@ function Form({ initial, onClose, onSave, onDelete, onWish }: Props) {
           <TextInput value={phone} onChangeText={setPhone} placeholder="📱 Numéro (SMS / WhatsApp)" placeholderTextColor={colors.muted} keyboardType="phone-pad" style={styles.input} />
           <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
             <TextInput value={messenger} onChangeText={setMessenger} placeholder="Messenger (m.me/…)" placeholderTextColor={colors.muted} autoCapitalize="none" style={[styles.input, { flex: 1, minWidth: 0 }]} />
-            <TextInput value={snapchat} onChangeText={setSnapchat} placeholder="Pseudo Snap" placeholderTextColor={colors.muted} autoCapitalize="none" style={[styles.input, { flex: 1, minWidth: 0 }]} />
+            <TextInput value={snapchat} onChangeText={setSnapchat} placeholder="Nom d'utilisateur Snap" placeholderTextColor={colors.muted} autoCapitalize="none" autoCorrect={false} style={[styles.input, { flex: 1, minWidth: 0 }, snapchat.trim() !== '' && !snapUsername(snapchat) && { borderColor: colors.coral }]} />
           </View>
+          {snapchat.trim() !== '' && !snapUsername(snapchat) && (
+            <Text style={styles.warnTxt}>Ça ressemble au nom affiché. Il faut son nom d'utilisateur (sans espace ni accent), visible sous son nom dans son profil Snap. Sinon l'app ouvrira juste Snapchat.</Text>
+          )}
 
           <SectionTitle>Notes</SectionTitle>
           <TextInput value={notes} onChangeText={setNotes} placeholder="Ses goûts, sa pointure…" placeholderTextColor={colors.muted} multiline style={[styles.input, { minHeight: 70, textAlignVertical: 'top' }]} />
@@ -148,6 +152,7 @@ const styles = StyleSheet.create({
   cellActive: { backgroundColor: colors.coral, borderColor: colors.coral },
   cellTxt: { fontWeight: '700', color: colors.ink },
   input: { backgroundColor: '#fff', borderRadius: 16, borderWidth: 1.5, borderColor: colors.line, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, color: colors.ink },
+  warnTxt: { color: colors.coral, fontSize: 13, marginTop: 6, lineHeight: 18 },
   switchRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 18, padding: 14, gap: 12 },
   switchTitle: { fontWeight: '800', color: colors.ink, fontSize: 15 },
   switchSub: { color: colors.muted, fontSize: 13, marginTop: 2 },

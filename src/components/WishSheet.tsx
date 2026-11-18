@@ -38,7 +38,11 @@ export default function WishSheet({ person, template, onClose, onUsed }: Props) 
       return;
     }
     onUsed(person, c);
-    if (res === 'copie') setInfo('Message copié ✅ Dans la conversation, fais un appui long puis « Coller », et envoie !');
+    if (res === 'copie') {
+      setInfo(c === 'snapchat' && person.snapchat
+        ? 'Message copié ✅ Sur son profil Snap, touche « Chat », puis appui long, « Coller » et envoie. Si Snap affiche une erreur, son nom d\'utilisateur est sûrement faux (corrige-le dans sa fiche).'
+        : 'Message copié ✅ Dans la conversation, fais un appui long puis « Coller », et envoie !');
+    }
     else onClose();
   };
 

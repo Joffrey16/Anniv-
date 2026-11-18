@@ -34,3 +34,24 @@ export function whatsappUrl(phone: string | undefined, text: string): string {
   const num = phone ? internationalDigits(phone) : null;
   return num ? `https://wa.me/${num}?text=${encodeURIComponent(text)}` : `https://wa.me/?text=${encodeURIComponent(text)}`;
 }
+
+/**
+ * Nom d'utilisateur Snapchat (pas le nom affiché) : 3 à 15 caractères, commence par une lettre,
+ * lettres, chiffres, « - », « _ » ou « . ». Accepte aussi un lien de profil collé.
+ * Retourne null si ce n'est pas un nom d'utilisateur valide (ex. « Léa Martin »).
+ */
+export function snapUsername(input?: string): string | null {
+  if (!input) return null;
+  let s = input.trim();
+  const link = s.match(/snapchat\.com\/(?:add\/|@)([^/?#\s]+)/i);
+  if (link) s = link[1];
+  s = s.replace(/^@/, '').toLowerCase();
+  return /^[a-z][a-z0-9._-]{2,14}$/.test(s) ? s : null;
+}
+
+export function snapUrls(handle?: string): string[] {
+  const u = snapUsername(handle);
+  // Snapchat n'a pas de lien vers une conversation : on ouvre le profil (bouton « Chat »),
+  // sinon simplement l'app.
+  return u ? [`https://www.snapchat.com/add/${u}`, 'snapchat://'] : ['snapchat://', 'https://www.snapchat.com/'];
+}

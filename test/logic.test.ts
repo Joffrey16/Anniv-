@@ -53,3 +53,14 @@ test('liens SMS / WhatsApp', () => {
   assert.equal(smsUrl('06 12 34 56 78', 'Coucou', 'ios'), 'sms:0612345678&body=Coucou');
   assert.equal(smsUrl('06 12 34 56 78', 'Coucou', 'android'), 'sms:0612345678?body=Coucou');
 });
+
+import { snapUsername, snapUrls } from '../src/message.ts';
+
+test('nom d\'utilisateur Snapchat', () => {
+  assert.equal(snapUsername('@Lea.Martin94'), 'lea.martin94');
+  assert.equal(snapUsername('https://www.snapchat.com/add/lea_m?share_id=xyz'), 'lea_m');
+  assert.equal(snapUsername('Léa Martin'), null);
+  assert.equal(snapUsername('ab'), null);
+  assert.deepEqual(snapUrls('Léa Martin'), ['snapchat://', 'https://www.snapchat.com/']);
+  assert.equal(snapUrls('lea_m')[0], 'https://www.snapchat.com/add/lea_m');
+});

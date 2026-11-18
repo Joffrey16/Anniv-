@@ -1,6 +1,6 @@
 import { Linking, Platform, Share } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
-import { smsUrl, whatsappUrl } from './message';
+import { smsUrl, snapUrls, whatsappUrl } from './message';
 
 export type Channel = 'sms' | 'whatsapp' | 'messenger' | 'snapchat' | 'instagram' | 'autre';
 
@@ -33,7 +33,7 @@ export async function sendWish(channel: Channel, text: string, phone?: string, h
       return (await tryOpen(handle ? [`https://m.me/${handle}`] : ['fb-messenger://', 'https://www.messenger.com/'])) ? 'copie' : 'echec';
     case 'snapchat':
       await Clipboard.setStringAsync(text);
-      return (await tryOpen(handle ? [`https://www.snapchat.com/add/${handle}`] : ['snapchat://', 'https://www.snapchat.com/'])) ? 'copie' : 'echec';
+      return (await tryOpen(snapUrls(handle))) ? 'copie' : 'echec';
     case 'instagram':
       await Clipboard.setStringAsync(text);
       return (await tryOpen(handle ? [`https://ig.me/m/${handle}`] : ['instagram://direct-inbox', 'https://www.instagram.com/direct/inbox/'])) ? 'copie' : 'echec';
