@@ -5,11 +5,13 @@ import { countdownLabel, daysUntil, formatDayMonth, sortByUpcoming, upcomingAge 
 import { colors, gradients, shadow } from '../theme';
 import { Person } from '../types';
 import { Card, GhostButton, GradientButton, RelationTag, SectionTitle } from '../components/ui';
+import { isIOS, isStandaloneWeb, isWeb } from '../platform';
 
 type Props = { people: Person[]; onOpen: (p: Person) => void; onAdd: () => void; onImport: () => void; onWish: (p: Person) => void };
 
 export default function HomeScreen({ people, onOpen, onAdd, onImport, onWish }: Props) {
   const [q, setQ] = useState('');
+  const [hideInstall, setHideInstall] = useState(false);
   const sorted = useMemo(() => sortByUpcoming(people), [people]);
   const filtered = q ? sorted.filter((p) => p.name.toLowerCase().includes(q.toLowerCase())) : sorted;
   const next = sorted[0];
@@ -35,6 +37,12 @@ export default function HomeScreen({ people, onOpen, onAdd, onImport, onWish }: 
         <Text style={styles.title}>Anniv !</Text>
       </View>
 
+      {isWeb && isIOS && !isStandaloneWeb && !hideInstall && (
+        <Pressable onPress={() => setHideInstall(true)} style={styles.install}>
+          <Text style={styles.installTxt}>📲 Installe l'app : touche le bouton Partager <Text style={{ fontWeight: '900' }}>⬆︎</Text> puis « Sur l'écran d'accueil ».</Text>
+          <Text style={styles.installX}>✕</Text>
+        </Pressable>
+      )}
       {next ? <Hero person={next} onPress={() => onOpen(next)} onWish={() => onWish(next)} /> : <Empty onAdd={onAdd} onImport={onImport} />}
 
       {people.length > 0 && (
@@ -135,6 +143,9 @@ const styles = StyleSheet.create({
   header: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 16 },
   hello: { fontSize: 16, color: colors.muted, fontWeight: '600' },
   title: { fontSize: 36, fontWeight: '900', color: colors.ink, letterSpacing: -1 },
+  install: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 20, marginBottom: 14, backgroundColor: '#EEE9FF', borderRadius: 16, padding: 12 },
+  installTxt: { flex: 1, color: '#4B32C3', fontWeight: '700', lineHeight: 19 },
+  installX: { color: '#4B32C3', fontWeight: '900', marginLeft: 8 },
   hero: { borderRadius: 28, padding: 20, ...shadow, shadowOpacity: 0.25, shadowColor: '#FF6B6B' },
   heroKicker: { color: 'rgba(255,255,255,0.9)', fontWeight: '800', fontSize: 12, letterSpacing: 1.5 },
   heroEmoji: { width: 64, height: 64, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.3)', alignItems: 'center', justifyContent: 'center' },

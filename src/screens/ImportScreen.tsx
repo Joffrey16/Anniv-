@@ -7,10 +7,12 @@ import { colors, gradients } from '../theme';
 import { ImportCandidate, Person } from '../types';
 import { Card, GradientButton, SectionTitle } from '../components/ui';
 import { newId } from '../storage';
+import { isIOS, isWeb } from '../platform';
+import { exportBackup } from '../webCalendar';
 
-type Props = { people: Person[]; onImport: (p: Person[], phones: { name: string; phone: string }[]) => void };
+type Props = { people: Person[]; onImport: (p: Person[], phones: { name: string; phone: string }[]) => void; onRestore: (p: Person[]) => void };
 
-export default function ImportScreen({ people, onImport }: Props) {
+export default function ImportScreen({ people, onImport, onRestore }: Props) {
   const [candidates, setCandidates] = useState<ImportCandidate[] | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [source, setSource] = useState<'contacts' | 'fichier'>('contacts');
@@ -38,7 +40,12 @@ export default function ImportScreen({ people, onImport }: Props) {
     setBusy(true); setMsg(null);
     try {
       const res = await pickAndParseFile();
-      if (res) show(toCandidates(res, people), 'fichier');
+      if (res && 'backup' in res) {
+        const known = new Set(people.map((p) => p.id));
+        const fresh = res.backup.filter((p) => !known.has(p.id));
+        onRestore(fresh);
+        setMsg(`Sauvegarde restaurée : ${fresh.length} anniversaire${fresh.length > 1 ? 's' : ''} ajouté${fresh.length > 1 ? 's' : ''} 🎉`);
+      } else if (res) show(toCandidates(res, people), 'fichier');
     } catch {
       setMsg('Impossible de lire ce fichier. Il faut un .vcf (contacts) ou un .ics (calendrier).');
     } finally { setBusy(false); }
@@ -106,9 +113,31 @@ export default function ImportScreen({ people, onImport }: Props) {
       {busy && <ActivityIndicator color={colors.coral} style={{ marginTop: 16 }} />}
       {msg && <View style={styles.msg}><Text style={styles.msgTxt}>{msg}</Text></View>}
 
-      <Source gradient={gradients.hero} icon="📱" title="Contacts du téléphone" desc="Les contacts qui ont une date d'anniversaire (y compris ceux synchronisés depuis Google ou iCloud)." onPress={fromContacts} />
-      <Source gradient={gradients.violet} icon="📄" title="Fichier .vcf ou .ics" desc="Export de Google Contacts, iCloud, Outlook, ou un calendrier d'anniversaires." onPress={fromFile} />
+      {!isWeb && <Source gradient={gradients.hero} icon="📱" title="Contacts du téléphone" desc="Les contacts qui ont une date d'anniversaire (y compris ceux synchronisés depuis Google ou iCloud)." onPress={fromContacts} />}
+      <Source gradient={isWeb ? gradients.hero : gradients.violet} icon="📄" title={isWeb ? 'Mes contacts (fichier .vcf)' : 'Fichier .vcf ou .ics'} desc="Export de Google Contacts, iCloud, Outlook, ou un calendrier d'anniversaires (.ics)." onPress={fromFile} />
+      {isWeb && (
+        <Card style={{ marginTop: 12 }}>
+          <Text style={styles.fbTitle}>📱 Récupérer les contacts de l'iPhone</Text>
+          <Text style={styles.fbTxt}>
+            {isIOS
+              ? "Dans l'app Contacts, ouvre « Listes », fais un appui long sur « Tous les contacts » puis « Exporter » et enregistre dans Fichiers. Reviens ici, touche « Mes contacts » et choisis ce fichier."
+              : "Exporte tes contacts en .vcf (contacts.google.com › Exporter › vCard, ou iCloud.com), puis touche « Mes contacts »."}
+          </Text>
+        </Card>
+      )}
       <Source gradient={gradients.mint} icon="💌" title="Demander à mes amis" desc="Envoie un petit message (WhatsApp, Snap, SMS…) pour leur demander leur date." onPress={invite} />
+
+      {isWeb && (
+        <>
+          <SectionTitle>💾 Sauvegarde</SectionTitle>
+          <Card>
+            <Text style={styles.fbTxt}>Tes anniversaires restent uniquement sur ce téléphone. Fais une sauvegarde de temps en temps (dans Fichiers ou iCloud Drive) : pour la restaurer, touche « Mes contacts » et choisis le fichier.</Text>
+            <View style={{ marginTop: 12 }}>
+              <GradientButton label="Sauvegarder mes anniversaires" icon="💾" colorsOverride={gradients.mint} disabled={!people.length} onPress={() => exportBackup(people)} />
+            </View>
+          </Card>
+        </>
+      )}
 
       <SectionTitle>Et Facebook / Snapchat ?</SectionTitle>
       <Card>

@@ -87,7 +87,7 @@ export default function App() {
         <StatusBar style="dark" />
         <View style={{ flex: 1 }}>
           {tab === 'home' && <HomeScreen people={people} onOpen={openPerson} onAdd={openNew} onImport={() => setTab('import')} onWish={setWishFor} />}
-          {tab === 'import' && <ImportScreen people={people} onImport={importMany} />}
+          {tab === 'import' && <ImportScreen people={people} onImport={importMany} onRestore={(list) => setPeople((prev) => [...prev, ...list])} />}
           {tab === 'reminders' && (
             <RemindersScreen people={people} settings={settings} onChange={setSettings} permission={permission}
               onAskPermission={async () => setPermission(await ensurePermission())} />

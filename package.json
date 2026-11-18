@@ -28,7 +28,8 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "test": "node --experimental-strip-types --test test/logic.test.ts"
+    "test": "node --experimental-strip-types --test test/logic.test.ts",
+    "build:web": "node scripts/build-web.mjs"
   },
   "private": true
 }

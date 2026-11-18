@@ -1,6 +1,10 @@
 import React, { useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { DEFAULT_WISH_TEMPLATE } from '../message';
+import { exportToCalendar } from '../webCalendar';
+import { isIOS } from '../platform';
+import { GradientButton } from '../components/ui';
+import { gradients } from '../theme';
 import { notificationsSupported, planReminders, sendTestNotification } from '../notifications';
 import { colors } from '../theme';
 import { Person, ReminderKind, ReminderRule, Settings } from '../types';
@@ -33,7 +37,20 @@ export default function RemindersScreen({ people, settings, onChange, permission
         </Pressable>
       )}
       {!notificationsSupported && (
-        <View style={styles.warn}><Text style={styles.warnTxt}>ℹ️ Aperçu web : les notifications ne partent que sur iPhone et Android.</Text></View>
+        <Card style={{ marginTop: 16 }}>
+          <Text style={styles.calTitle}>📅 Recevoir les rappels</Text>
+          <Text style={styles.calTxt}>
+            Règle tes rappels ci-dessous, puis ajoute-les au calendrier de ton téléphone : c'est lui qui t'enverra les alertes, même si l'app est fermée.
+          </Text>
+          <View style={{ marginTop: 12 }}>
+            <GradientButton label="Ajouter au calendrier" icon="📅" colorsOverride={gradients.violet} disabled={people.length === 0} onPress={() => exportToCalendar(people, settings)} />
+          </View>
+          <Text style={styles.calHint}>
+            {isIOS
+              ? "Sur iPhone : touche « Tout ajouter » et choisis un calendrier « Anniversaires » (crée-le dans l'app Calendrier). Après des changements, supprime ce calendrier puis ajoute-le à nouveau."
+              : "Ouvre le fichier téléchargé avec ton agenda (Google Agenda, Outlook…). Après des changements, refais l'export."}
+          </Text>
+        </Card>
       )}
 
       {(['cadeau', 'souhaiter'] as ReminderKind[]).map((kind) => (
@@ -72,10 +89,10 @@ export default function RemindersScreen({ people, settings, onChange, permission
           ))}
           <Chip label="↺ Par défaut" onPress={() => onChange({ ...settings, wishTemplate: DEFAULT_WISH_TEMPLATE })} />
         </View>
-        <Text style={styles.note}>Le jour J, la notification ouvre ce message, prêt à envoyer par SMS, WhatsApp, Messenger…</Text>
+        <Text style={styles.note}>Le bouton « Souhaiter » ouvre ce message, prêt à envoyer par SMS, WhatsApp, Messenger…</Text>
       </Card>
 
-      <SectionTitle>Prochaines notifications</SectionTitle>
+      <SectionTitle>{notificationsSupported ? 'Prochaines notifications' : 'Prochains rappels'}</SectionTitle>
       <Card>
         {upcoming.length === 0 && <Text style={styles.note}>Rien de prévu pour l'instant.</Text>}
         {upcoming.map((n, i) => (
@@ -118,6 +135,9 @@ const styles = StyleSheet.create({
   addRule: { borderWidth: 1.5, borderStyle: 'dashed', borderColor: colors.line, borderRadius: 18, padding: 14, alignItems: 'center' },
   addRuleTxt: { color: colors.muted, fontWeight: '800' },
   tpl: { backgroundColor: colors.bg, borderRadius: 14, padding: 12, fontSize: 15, color: colors.ink, minHeight: 80, textAlignVertical: 'top', marginBottom: 10 },
+  calTitle: { fontSize: 17, fontWeight: '900', color: colors.ink },
+  calTxt: { color: colors.muted, fontSize: 14, lineHeight: 20, marginTop: 6 },
+  calHint: { color: colors.muted, fontSize: 12, lineHeight: 17, marginTop: 10 },
   upRow: { paddingVertical: 10 },
   upDate: { color: colors.muted, fontSize: 12, fontWeight: '700', textTransform: 'capitalize' },
   upTitle: { color: colors.ink, fontWeight: '700', marginTop: 2 },

@@ -34,3 +34,15 @@ npm test              # tests de la logique (dates, import .vcf/.ics)
 Stack : Expo SDK 58 / React Native, TypeScript, expo-notifications (rappels locaux), expo-contacts, expo-document-picker, AsyncStorage.
 
 Note : iOS limite à 64 notifications programmées ; l'app garde les 60 plus proches et reprogramme à chaque ouverture.
+
+## Version web (gratuite, à installer sur l'iPhone)
+
+Publiée automatiquement sur GitHub Pages à chaque envoi sur `main` (voir `.github/workflows/pages.yml`).
+Sur iPhone : ouvrir l'adresse dans Safari, bouton Partager › « Sur l'écran d'accueil ».
+
+Différences avec l'app native :
+- pas d'accès direct aux contacts : importer un fichier `.vcf` (export de l'app Contacts, de Google Contacts ou d'iCloud) ;
+- les rappels passent par le Calendrier du téléphone (bouton « Ajouter au calendrier » dans Rappels, fichier `.ics` avec alertes) ;
+- bouton « Sauvegarder » (fichier JSON) car les données restent dans le téléphone.
+
+Construire localement : `EXPO_BASE_URL=/Anniv- npm run build:web` (dossier `dist/`).

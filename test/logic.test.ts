@@ -64,3 +64,22 @@ test('nom d\'utilisateur Snapchat', () => {
   assert.deepEqual(snapUrls('Léa Martin'), ['snapchat://', 'https://www.snapchat.com/']);
   assert.equal(snapUrls('lea_m')[0], 'https://www.snapchat.com/add/lea_m');
 });
+
+import { alarmTrigger, buildIcs } from '../src/calendar.ts';
+
+test('export calendrier .ics', () => {
+  assert.equal(alarmTrigger(0, 9, 0), 'PT540M');
+  assert.equal(alarmTrigger(7, 18, 0), '-PT9000M');
+  const ics = buildIcs([
+    { id: 'a', name: 'Léa', day: 21, month: 11, year: 1994, relation: 'ami', emoji: '', giftNeeded: true, giftIdeas: 'livre, vinyle' },
+    { id: 'b', name: 'Hugo', day: 2, month: 1, relation: 'ami', emoji: '', giftNeeded: false },
+  ], { wishTemplate: '', reminders: [
+    { id: '1', kind: 'cadeau', daysBefore: 7, hour: 18, minute: 0, enabled: true },
+    { id: '2', kind: 'souhaiter', daysBefore: 0, hour: 9, minute: 0, enabled: true },
+  ] }, new Date(2026, 10, 18));
+  assert.match(ics, /DTSTART;VALUE=DATE:20261121/);
+  assert.match(ics, /DTSTART;VALUE=DATE:20270102/);
+  assert.equal((ics.match(/BEGIN:VALARM/g) ?? []).length, 3); // Hugo : pas de rappel cadeau
+  assert.match(ics, /livre\\, vinyle/);
+  assert.ok(ics.split('\r\n').every((l) => new TextEncoder().encode(l).length <= 75));
+});

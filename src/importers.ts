@@ -3,6 +3,7 @@ import * as Contacts from 'expo-contacts/legacy';
 import * as DocumentPicker from 'expo-document-picker';
 import { File } from 'expo-file-system';
 import { parseText, Raw } from './parsers';
+import type { Person } from './types';
 export { toCandidates } from './parsers';
 
 /** Contacts du téléphone qui ont une date d'anniversaire (iOS et Android). */
@@ -23,11 +24,15 @@ export async function readPhoneContacts(): Promise<Raw[] | 'refuse' | 'indisponi
 }
 
 /** Fichier .vcf (export Google Contacts / iCloud / Outlook) ou .ics (calendrier d'anniversaires). */
-export async function pickAndParseFile(): Promise<Raw[] | null> {
+export async function pickAndParseFile(): Promise<Raw[] | { backup: Person[] } | null> {
   const res = await DocumentPicker.getDocumentAsync({ type: ['text/vcard', 'text/x-vcard', 'text/calendar', '*/*'], copyToCacheDirectory: true });
   if (res.canceled || !res.assets?.[0]) return null;
   const asset = res.assets[0];
   const text = Platform.OS === 'web' ? await (await fetch(asset.uri)).text() : await new File(asset.uri).text();
+  if (/^\s*\{/.test(text)) {
+    const data = JSON.parse(text);
+    if (data?.app === 'anniv' && Array.isArray(data.people)) return { backup: data.people as Person[] };
+  }
   return parseText(text);
 }
 
