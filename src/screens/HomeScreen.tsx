@@ -6,9 +6,9 @@ import { colors, gradients, shadow } from '../theme';
 import { Person } from '../types';
 import { Card, GhostButton, GradientButton, RelationTag, SectionTitle } from '../components/ui';
 
-type Props = { people: Person[]; onOpen: (p: Person) => void; onAdd: () => void; onImport: () => void };
+type Props = { people: Person[]; onOpen: (p: Person) => void; onAdd: () => void; onImport: () => void; onWish: (p: Person) => void };
 
-export default function HomeScreen({ people, onOpen, onAdd, onImport }: Props) {
+export default function HomeScreen({ people, onOpen, onAdd, onImport, onWish }: Props) {
   const [q, setQ] = useState('');
   const sorted = useMemo(() => sortByUpcoming(people), [people]);
   const filtered = q ? sorted.filter((p) => p.name.toLowerCase().includes(q.toLowerCase())) : sorted;
@@ -35,7 +35,7 @@ export default function HomeScreen({ people, onOpen, onAdd, onImport }: Props) {
         <Text style={styles.title}>Anniv !</Text>
       </View>
 
-      {next ? <Hero person={next} onPress={() => onOpen(next)} /> : <Empty onAdd={onAdd} onImport={onImport} />}
+      {next ? <Hero person={next} onPress={() => onOpen(next)} onWish={() => onWish(next)} /> : <Empty onAdd={onAdd} onImport={onImport} />}
 
       {people.length > 0 && (
         <View style={{ paddingHorizontal: 20 }}>
@@ -46,7 +46,7 @@ export default function HomeScreen({ people, onOpen, onAdd, onImport }: Props) {
           {groups.map((g) => (
             <View key={g.title}>
               <SectionTitle>{g.title}</SectionTitle>
-              {g.items.map((p) => <Row key={p.id} person={p} onPress={() => onOpen(p)} />)}
+              {g.items.map((p) => <Row key={p.id} person={p} onPress={() => onOpen(p)} onWish={() => onWish(p)} />)}
             </View>
           ))}
           {filtered.length === 0 && <Text style={styles.none}>Personne ne s'appelle comme ça 🤔</Text>}
@@ -56,7 +56,7 @@ export default function HomeScreen({ people, onOpen, onAdd, onImport }: Props) {
   );
 }
 
-function Hero({ person, onPress }: { person: Person; onPress: () => void }) {
+function Hero({ person, onPress, onWish }: { person: Person; onPress: () => void; onWish: () => void }) {
   const d = daysUntil(person);
   const age = upcomingAge(person);
   return (
@@ -74,17 +74,22 @@ function Hero({ person, onPress }: { person: Person; onPress: () => void }) {
             {d > 0 && <Text style={styles.heroDaysLbl}>{d === 1 ? 'jour' : 'jours'}</Text>}
           </View>
         </View>
-        {person.giftNeeded && (
-          <View style={styles.heroGift}>
-            <Text style={styles.heroGiftTxt}>🎁 {person.giftIdeas ? person.giftIdeas : 'Cadeau à prévoir'}</Text>
-          </View>
-        )}
+        <View style={{ flexDirection: 'row', gap: 8, marginTop: 16 }}>
+          {person.giftNeeded && (
+            <View style={[styles.heroGift, { flex: 1 }]}>
+              <Text style={styles.heroGiftTxt} numberOfLines={1}>🎁 {person.giftIdeas ? person.giftIdeas : 'Cadeau à prévoir'}</Text>
+            </View>
+          )}
+          <Pressable onPress={onWish} style={({ pressed }) => [styles.heroWish, !person.giftNeeded && { flex: 1 }, pressed && { opacity: 0.8 }]}>
+            <Text style={styles.heroWishTxt}>🎉 Souhaiter</Text>
+          </Pressable>
+        </View>
       </LinearGradient>
     </Pressable>
   );
 }
 
-function Row({ person, onPress }: { person: Person; onPress: () => void }) {
+function Row({ person, onPress, onWish }: { person: Person; onPress: () => void; onWish: () => void }) {
   const d = daysUntil(person);
   const age = upcomingAge(person);
   const soon = d <= 3;
@@ -102,6 +107,9 @@ function Row({ person, onPress }: { person: Person; onPress: () => void }) {
           {person.giftNeeded ? <Text style={{ fontSize: 12 }}>🎁</Text> : null}
         </View>
       </View>
+      {d <= 1 && (
+        <Pressable onPress={onWish} hitSlop={8} style={styles.wishBtn}><Text style={{ fontSize: 18 }}>💬</Text></Pressable>
+      )}
       <View style={[styles.pill, soon && { backgroundColor: colors.coral }]}>
         <Text style={[styles.pillText, soon && { color: '#fff' }]}>{countdownLabel(d)}</Text>
       </View>
@@ -135,7 +143,9 @@ const styles = StyleSheet.create({
   heroCount: { backgroundColor: '#fff', borderRadius: 18, paddingVertical: 8, paddingHorizontal: 12, alignItems: 'center', minWidth: 62 },
   heroDays: { fontSize: 26, fontWeight: '900', color: colors.coral },
   heroDaysLbl: { fontSize: 11, fontWeight: '700', color: colors.muted, marginTop: -2 },
-  heroGift: { marginTop: 16, backgroundColor: 'rgba(255,255,255,0.22)', borderRadius: 14, padding: 10 },
+  heroWish: { backgroundColor: '#fff', borderRadius: 14, paddingVertical: 10, paddingHorizontal: 14, alignItems: 'center' },
+  heroWishTxt: { color: colors.coral, fontWeight: '900' },
+  heroGift: { backgroundColor: 'rgba(255,255,255,0.22)', borderRadius: 14, padding: 10 },
   heroGiftTxt: { color: '#fff', fontWeight: '700' },
   search: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 16, paddingHorizontal: 14, marginTop: 18, borderWidth: 1.5, borderColor: colors.line },
   searchInput: { flex: 1, minWidth: 0, paddingVertical: 12, paddingHorizontal: 10, fontSize: 15, color: colors.ink },
@@ -145,6 +155,7 @@ const styles = StyleSheet.create({
   dateMonth: { fontSize: 10, fontWeight: '800', color: colors.muted, letterSpacing: 1 },
   rowName: { fontSize: 16, fontWeight: '800', color: colors.ink },
   rowAge: { fontSize: 12, color: colors.muted, fontWeight: '600' },
+  wishBtn: { width: 38, height: 38, borderRadius: 12, backgroundColor: '#EEE9FF', alignItems: 'center', justifyContent: 'center', marginRight: 8 },
   pill: { backgroundColor: colors.soft, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 12 },
   pillText: { fontSize: 12, fontWeight: '800', color: colors.coral },
   none: { textAlign: 'center', color: colors.muted, marginTop: 30 },

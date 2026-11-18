@@ -10,7 +10,7 @@ export async function readPhoneContacts(): Promise<Raw[] | 'refuse' | 'indisponi
   if (Platform.OS === 'web') return 'indisponible';
   const { status } = await Contacts.requestPermissionsAsync();
   if (status !== 'granted') return 'refuse';
-  const { data } = await Contacts.getContactsAsync({ fields: [Contacts.Fields.Name, Contacts.Fields.Birthday] });
+  const { data } = await Contacts.getContactsAsync({ fields: [Contacts.Fields.Name, Contacts.Fields.Birthday, Contacts.Fields.PhoneNumbers] });
   return data
     .filter((c) => c.birthday && c.birthday.day && c.birthday.month !== undefined)
     .map((c) => ({
@@ -18,6 +18,7 @@ export async function readPhoneContacts(): Promise<Raw[] | 'refuse' | 'indisponi
       day: c.birthday!.day,
       month: c.birthday!.month + 1, // l'API renvoie des mois 0-11
       year: c.birthday!.year && c.birthday!.year > 1900 ? c.birthday!.year : undefined,
+      phone: (c.phoneNumbers?.find((n) => n.label?.toLowerCase().includes('mobile')) ?? c.phoneNumbers?.[0])?.number,
     }));
 }
 

@@ -7,7 +7,7 @@ import { Person, Relation } from '../types';
 import { Chip, GhostButton, GradientButton, SectionTitle, Toggle } from '../components/ui';
 import { newId } from '../storage';
 
-type Props = { visible: boolean; initial?: Person | null; onClose: () => void; onSave: (p: Person) => void; onDelete: (id: string) => void };
+type Props = { visible: boolean; initial?: Person | null; onClose: () => void; onSave: (p: Person) => void; onDelete: (id: string) => void; onWish: (p: Person) => void };
 
 export default function PersonEditor(props: Props) {
   // On remonte le formulaire à chaque ouverture pour repartir des bonnes valeurs.
@@ -18,7 +18,7 @@ export default function PersonEditor(props: Props) {
   );
 }
 
-function Form({ initial, onClose, onSave, onDelete }: Props) {
+function Form({ initial, onClose, onSave, onDelete, onWish }: Props) {
   const [name, setName] = useState(initial?.name ?? '');
   const [day, setDay] = useState<number | null>(initial?.day ?? null);
   const [month, setMonth] = useState<number | null>(initial?.month ?? null);
@@ -28,21 +28,24 @@ function Form({ initial, onClose, onSave, onDelete }: Props) {
   const [giftNeeded, setGiftNeeded] = useState(initial?.giftNeeded ?? true);
   const [giftIdeas, setGiftIdeas] = useState(initial?.giftIdeas ?? '');
   const [notes, setNotes] = useState(initial?.notes ?? '');
+  const [phone, setPhone] = useState(initial?.phone ?? '');
+  const [messenger, setMessenger] = useState(initial?.messenger ?? '');
+  const [snapchat, setSnapchat] = useState(initial?.snapchat ?? '');
 
   const maxDay = month ? daysInMonth(month) : 31;
   const yearNum = year ? parseInt(year, 10) : undefined;
   const yearOk = !year || (yearNum! > 1900 && yearNum! <= new Date().getFullYear());
   const valid = name.trim().length > 0 && day && month && day <= maxDay && yearOk;
 
-  const save = () => {
-    if (!valid) return;
-    onSave({
+  const build = (): Person => ({
       id: initial?.id ?? newId(),
       name: name.trim(), day: day!, month: month!, year: yearNum,
       relation, emoji, giftNeeded, giftIdeas: giftIdeas.trim() || undefined, notes: notes.trim() || undefined,
+      phone: phone.trim() || undefined, messenger: messenger.trim().replace(/^@/, '') || undefined, snapchat: snapchat.trim().replace(/^@/, '') || undefined,
+      preferredChannel: initial?.preferredChannel,
       source: initial?.source ?? 'manuel',
-    });
-  };
+  });
+  const save = () => { if (valid) onSave(build()); };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -108,11 +111,19 @@ function Form({ initial, onClose, onSave, onDelete }: Props) {
             <TextInput value={giftIdeas} onChangeText={setGiftIdeas} placeholder="Idées cadeau (livre, resto, vinyle…)" placeholderTextColor={colors.muted} style={[styles.input, { marginTop: 10 }]} />
           )}
 
+          <SectionTitle>Pour lui écrire</SectionTitle>
+          <TextInput value={phone} onChangeText={setPhone} placeholder="📱 Numéro (SMS / WhatsApp)" placeholderTextColor={colors.muted} keyboardType="phone-pad" style={styles.input} />
+          <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
+            <TextInput value={messenger} onChangeText={setMessenger} placeholder="Messenger (m.me/…)" placeholderTextColor={colors.muted} autoCapitalize="none" style={[styles.input, { flex: 1, minWidth: 0 }]} />
+            <TextInput value={snapchat} onChangeText={setSnapchat} placeholder="Pseudo Snap" placeholderTextColor={colors.muted} autoCapitalize="none" style={[styles.input, { flex: 1, minWidth: 0 }]} />
+          </View>
+
           <SectionTitle>Notes</SectionTitle>
           <TextInput value={notes} onChangeText={setNotes} placeholder="Ses goûts, sa pointure…" placeholderTextColor={colors.muted} multiline style={[styles.input, { minHeight: 70, textAlignVertical: 'top' }]} />
 
           <View style={{ marginTop: 26, gap: 10 }}>
             <GradientButton label={initial ? 'Enregistrer' : 'Ajouter'} onPress={save} disabled={!valid} />
+            {initial && valid && <GhostButton label="🎉  Lui souhaiter maintenant" onPress={() => { const p = build(); onSave(p); onWish(p); }} color={colors.violet} />}
             {initial && <GhostButton label="Supprimer" onPress={() => onDelete(initial.id)} />}
           </View>
         </ScrollView>

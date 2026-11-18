@@ -11,6 +11,10 @@ export type Person = {
   giftNeeded: boolean; // recevoir les rappels "cadeau" pour cette personne
   giftIdeas?: string;
   notes?: string;
+  phone?: string; // pour SMS / WhatsApp
+  messenger?: string; // identifiant m.me (facultatif)
+  snapchat?: string; // pseudo Snapchat (facultatif)
+  preferredChannel?: 'sms' | 'whatsapp' | 'messenger' | 'snapchat' | 'instagram' | 'autre';
   source?: 'manuel' | 'contacts' | 'fichier';
 };
 
@@ -27,6 +31,7 @@ export type ReminderRule = {
 
 export type Settings = {
   reminders: ReminderRule[];
+  wishTemplate: string; // {prenom}, {nom}, {age}
 };
 
 export type ImportCandidate = {
@@ -35,5 +40,6 @@ export type ImportCandidate = {
   day: number;
   month: number;
   year?: number;
+  phone?: string;
   alreadyThere: boolean;
 };

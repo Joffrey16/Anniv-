@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Person, Settings } from './types';
+import { DEFAULT_WISH_TEMPLATE } from './message';
 
 const PEOPLE_KEY = 'anniv.people.v1';
 const SETTINGS_KEY = 'anniv.settings.v1';
@@ -10,6 +11,7 @@ export const DEFAULT_SETTINGS: Settings = {
     { id: 'wish-1', kind: 'souhaiter', daysBefore: 1, hour: 20, minute: 0, enabled: false },
     { id: 'wish-0', kind: 'souhaiter', daysBefore: 0, hour: 9, minute: 0, enabled: true },
   ],
+  wishTemplate: DEFAULT_WISH_TEMPLATE,
 };
 
 export async function loadPeople(): Promise<Person[]> {

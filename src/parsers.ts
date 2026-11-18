@@ -1,6 +1,6 @@
 import type { ImportCandidate, Person } from './types';
 
-export type Raw = { name: string; day: number; month: number; year?: number };
+export type Raw = { name: string; day: number; month: number; year?: number; phone?: string };
 
 const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
 
@@ -46,7 +46,8 @@ function parseVcf(text: string): Raw[] {
     const bday = card.match(/^(?:item\d+\.)?BDAY[^:\n]*:(.*)$/im)?.[1];
     if (!fn || !bday) continue;
     const d = parseDate(bday);
-    if (d) out.push({ name: unescape(fn), ...d });
+    const tel = card.match(/^(?:item\d+\.)?TEL[^:\n]*:(.*)$/im)?.[1]?.trim();
+    if (d) out.push({ name: unescape(fn), ...d, ...(tel ? { phone: tel } : {}) });
   }
   return out;
 }

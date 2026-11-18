@@ -9,7 +9,13 @@
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "NSContactsUsageDescription": "Anniv ! lit les dates d'anniversaire de vos contacts pour vous proposer de les ajouter."
+        "NSContactsUsageDescription": "Anniv ! lit les dates d'anniversaire de vos contacts pour vous proposer de les ajouter.",
+        "LSApplicationQueriesSchemes": [
+          "whatsapp",
+          "fb-messenger",
+          "snapchat",
+          "instagram"
+        ]
       },
       "bundleIdentifier": "app.anniv"
     },

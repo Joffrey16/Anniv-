@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { DEFAULT_WISH_TEMPLATE } from '../message';
 import { notificationsSupported, planReminders, sendTestNotification } from '../notifications';
 import { colors } from '../theme';
 import { Person, ReminderKind, ReminderRule, Settings } from '../types';
@@ -61,6 +62,19 @@ export default function RemindersScreen({ people, settings, onChange, permission
         </View>
       ))}
 
+      <SectionTitle>✍️ Mon message d'anniversaire</SectionTitle>
+      <Card>
+        <TextInput value={settings.wishTemplate} onChangeText={(t) => onChange({ ...settings, wishTemplate: t })} multiline style={styles.tpl} />
+        <Text style={styles.note}>Touche pour insérer :</Text>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+          {[['{prenom}', 'Prénom'], ['{nom}', 'Nom complet'], ['{age}', 'Âge']].map(([tag, lbl]) => (
+            <Chip key={tag} label={`+ ${lbl}`} onPress={() => onChange({ ...settings, wishTemplate: `${settings.wishTemplate} ${tag}`.trim() })} color={colors.violet} />
+          ))}
+          <Chip label="↺ Par défaut" onPress={() => onChange({ ...settings, wishTemplate: DEFAULT_WISH_TEMPLATE })} />
+        </View>
+        <Text style={styles.note}>Le jour J, la notification ouvre ce message, prêt à envoyer par SMS, WhatsApp, Messenger…</Text>
+      </Card>
+
       <SectionTitle>Prochaines notifications</SectionTitle>
       <Card>
         {upcoming.length === 0 && <Text style={styles.note}>Rien de prévu pour l'instant.</Text>}
@@ -103,6 +117,7 @@ const styles = StyleSheet.create({
   stepVal: { fontWeight: '800', color: colors.ink, minWidth: 54, textAlign: 'center' },
   addRule: { borderWidth: 1.5, borderStyle: 'dashed', borderColor: colors.line, borderRadius: 18, padding: 14, alignItems: 'center' },
   addRuleTxt: { color: colors.muted, fontWeight: '800' },
+  tpl: { backgroundColor: colors.bg, borderRadius: 14, padding: 12, fontSize: 15, color: colors.ink, minHeight: 80, textAlignVertical: 'top', marginBottom: 10 },
   upRow: { paddingVertical: 10 },
   upDate: { color: colors.muted, fontSize: 12, fontWeight: '700', textTransform: 'capitalize' },
   upTitle: { color: colors.ink, fontWeight: '700', marginTop: 2 },

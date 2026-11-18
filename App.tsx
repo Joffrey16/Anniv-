@@ -8,6 +8,7 @@ import HomeScreen from './src/screens/HomeScreen';
 import ImportScreen from './src/screens/ImportScreen';
 import RemindersScreen from './src/screens/RemindersScreen';
 import PersonEditor from './src/screens/PersonEditor';
+import WishSheet from './src/components/WishSheet';
 import { DEFAULT_SETTINGS, loadPeople, loadSettings, savePeople, saveSettings } from './src/storage';
 import { ensurePermission, notificationsSupported, rescheduleAll } from './src/notifications';
 import { colors, gradients, shadow } from './src/theme';
@@ -23,6 +24,7 @@ export default function App() {
   const [editing, setEditing] = useState<Person | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
   const [permission, setPermission] = useState(false);
+  const [wishFor, setWishFor] = useState<Person | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -54,9 +56,11 @@ export default function App() {
   useEffect(() => {
     if (!notificationsSupported) return;
     const sub = Notifications.addNotificationResponseReceivedListener((r) => {
-      const id = r.notification.request.content.data?.personId;
-      const p = people.find((x) => x.id === id);
-      if (p) { setEditing(p); setEditorOpen(true); }
+      const { personId, kind } = (r.notification.request.content.data ?? {}) as { personId?: string; kind?: string };
+      const p = people.find((x) => x.id === personId);
+      if (!p) return;
+      if (kind === 'souhaiter') setWishFor(p);
+      else { setEditing(p); setEditorOpen(true); }
     });
     return () => sub.remove();
   }, [people]);
@@ -68,14 +72,21 @@ export default function App() {
     setEditorOpen(false);
   };
   const remove = (id: string) => { setPeople((prev) => prev.filter((x) => x.id !== id)); setEditorOpen(false); };
-  const importMany = useCallback((list: Person[]) => setPeople((prev) => [...prev, ...list]), []);
+  const importMany = useCallback((list: Person[], phones: { name: string; phone: string }[]) => setPeople((prev) => {
+    // Complète le numéro des personnes déjà présentes qui n'en avaient pas.
+    const norm = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    const byName = new Map(phones.map((x) => [norm(x.name), x.phone]));
+    const updated = prev.map((p) => (!p.phone && byName.has(norm(p.name)) ? { ...p, phone: byName.get(norm(p.name)) } : p));
+    return [...updated, ...list];
+  }), []);
+  const wish = (p: Person) => { setEditorOpen(false); setTimeout(() => setWishFor(p), 350); };
 
   return (
     <SafeAreaProvider>
       <SafeAreaView style={styles.root} edges={['top']}>
         <StatusBar style="dark" />
         <View style={{ flex: 1 }}>
-          {tab === 'home' && <HomeScreen people={people} onOpen={openPerson} onAdd={openNew} onImport={() => setTab('import')} />}
+          {tab === 'home' && <HomeScreen people={people} onOpen={openPerson} onAdd={openNew} onImport={() => setTab('import')} onWish={setWishFor} />}
           {tab === 'import' && <ImportScreen people={people} onImport={importMany} />}
           {tab === 'reminders' && (
             <RemindersScreen people={people} settings={settings} onChange={setSettings} permission={permission}
@@ -94,7 +105,9 @@ export default function App() {
           <TabBtn icon="🔔" label="Rappels" active={tab === 'reminders'} onPress={() => setTab('reminders')} />
         </View>
 
-        <PersonEditor visible={editorOpen} initial={editing} onClose={() => setEditorOpen(false)} onSave={save} onDelete={remove} />
+        <PersonEditor visible={editorOpen} initial={editing} onClose={() => setEditorOpen(false)} onSave={save} onDelete={remove} onWish={wish} />
+        <WishSheet person={wishFor} template={settings.wishTemplate} onClose={() => setWishFor(null)}
+          onUsed={(p, channel) => setPeople((prev) => prev.map((x) => (x.id === p.id ? { ...x, preferredChannel: channel } : x)))} />
       </SafeAreaView>
     </SafeAreaProvider>
   );

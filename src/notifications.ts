@@ -35,7 +35,7 @@ export async function ensurePermission(): Promise<boolean> {
   return asked.granted;
 }
 
-type Planned = { date: Date; title: string; body: string; personId: string };
+type Planned = { date: Date; title: string; body: string; personId: string; kind: ReminderRule['kind'] };
 
 export function planReminders(people: Person[], settings: Settings, now = new Date()): Planned[] {
   const out: Planned[] = [];
@@ -44,7 +44,7 @@ export function planReminders(people: Person[], settings: Settings, now = new Da
       if (!rule.enabled) continue;
       if (rule.kind === 'cadeau' && !p.giftNeeded) continue;
       const date = fireDate(p, rule, now);
-      out.push({ date, personId: p.id, ...message(p, rule, now) });
+      out.push({ date, personId: p.id, kind: rule.kind, ...message(p, rule, now) });
     }
   }
   return out.sort((a, b) => a.date.getTime() - b.date.getTime()).slice(0, MAX_SCHEDULED);
@@ -76,7 +76,7 @@ function message(p: Person, rule: ReminderRule, now: Date) {
   }
   return {
     title: rule.daysBefore === 0 ? `🎂 C'est l'anniversaire de ${p.name} !` : `🎂 Anniversaire de ${p.name} ${when}`,
-    body: rule.daysBefore === 0 ? `N'oublie pas de lui souhaiter${ageTxt} 🎉` : `Prépare un petit mot${ageTxt}.`,
+    body: rule.daysBefore === 0 ? `Touche ici pour lui envoyer ton message${ageTxt} 🎉` : `Prépare un petit mot${ageTxt}.`,
   };
 }
 
@@ -88,7 +88,7 @@ export async function rescheduleAll(people: Person[], settings: Settings): Promi
   const planned = planReminders(people, settings);
   for (const n of planned) {
     await Notifications.scheduleNotificationAsync({
-      content: { title: n.title, body: n.body, data: { personId: n.personId } },
+      content: { title: n.title, body: n.body, data: { personId: n.personId, kind: n.kind } },
       trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: n.date, channelId: 'anniversaires' },
     });
   }

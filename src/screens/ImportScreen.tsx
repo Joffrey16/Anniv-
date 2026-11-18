@@ -8,7 +8,7 @@ import { ImportCandidate, Person } from '../types';
 import { Card, GradientButton, SectionTitle } from '../components/ui';
 import { newId } from '../storage';
 
-type Props = { people: Person[]; onImport: (p: Person[]) => void };
+type Props = { people: Person[]; onImport: (p: Person[], phones: { name: string; phone: string }[]) => void };
 
 export default function ImportScreen({ people, onImport }: Props) {
   const [candidates, setCandidates] = useState<ImportCandidate[] | null>(null);
@@ -53,10 +53,11 @@ export default function ImportScreen({ people, onImport }: Props) {
   const confirm = () => {
     if (!candidates) return;
     const added: Person[] = candidates.filter((c) => selected.has(c.key)).map((c) => ({
-      id: newId(), name: c.name, day: c.day, month: c.month, year: c.year,
+      id: newId(), name: c.name, day: c.day, month: c.month, year: c.year, phone: c.phone,
       relation: 'ami', emoji: '🎂', giftNeeded: false, source,
     }));
-    onImport(added);
+    const phones = candidates.filter((c) => c.alreadyThere && c.phone).map((c) => ({ name: c.name, phone: c.phone! }));
+    onImport(added, phones);
     setMsg(`${added.length} anniversaire${added.length > 1 ? 's' : ''} ajouté${added.length > 1 ? 's' : ''} 🎉`);
     setCandidates(null);
   };

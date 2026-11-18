@@ -36,3 +36,20 @@ test('doublons et déjà présents', () => {
   assert.equal(c.length, 1);
   assert.equal(c[0].alreadyThere, true);
 });
+
+import { buildMessage, internationalDigits, smsUrl, whatsappUrl } from '../src/message.ts';
+
+test('message paramétrable', () => {
+  const p = { id: '1', name: 'Léa Martin', day: 1, month: 1, relation: 'ami' as const, emoji: '', giftNeeded: false };
+  assert.equal(buildMessage('Joyeux anniv {prenom} ! {age} ans 🎉', p, 30), 'Joyeux anniv Léa ! 30 ans 🎉');
+  assert.equal(buildMessage('Bon anniversaire {nom} {age}', p), 'Bon anniversaire Léa Martin');
+});
+
+test('liens SMS / WhatsApp', () => {
+  assert.equal(internationalDigits('06 12 34 56 78'), '33612345678');
+  assert.equal(internationalDigits('+32 470 12 34 56'), '32470123456');
+  assert.equal(internationalDigits('0041 79 123 45 67'), '41791234567');
+  assert.equal(whatsappUrl('06 12 34 56 78', 'Salut !'), 'https://wa.me/33612345678?text=Salut%20!');
+  assert.equal(smsUrl('06 12 34 56 78', 'Coucou', 'ios'), 'sms:0612345678&body=Coucou');
+  assert.equal(smsUrl('06 12 34 56 78', 'Coucou', 'android'), 'sms:0612345678?body=Coucou');
+});
