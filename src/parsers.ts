@@ -1,6 +1,6 @@
 import type { ImportCandidate, Person } from './types';
 
-export type Raw = { name: string; day: number; month: number; year?: number; phone?: string };
+export type Raw = { name: string; day: number; month: number; year?: number; phone?: string; relation?: Person['relation']; emoji?: string };
 
 const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
 

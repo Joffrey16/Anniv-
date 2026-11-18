@@ -15,7 +15,7 @@ export type Person = {
   messenger?: string; // identifiant m.me (facultatif)
   snapchat?: string; // pseudo Snapchat (facultatif)
   preferredChannel?: 'sms' | 'whatsapp' | 'messenger' | 'snapchat' | 'instagram' | 'autre';
-  source?: 'manuel' | 'contacts' | 'fichier';
+  source?: 'manuel' | 'contacts' | 'fichier' | 'partage';
 };
 
 export type ReminderKind = 'cadeau' | 'souhaiter';
@@ -41,5 +41,7 @@ export type ImportCandidate = {
   month: number;
   year?: number;
   phone?: string;
+  relation?: Relation;
+  emoji?: string;
   alreadyThere: boolean;
 };

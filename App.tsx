@@ -12,7 +12,9 @@ import WishSheet from './src/components/WishSheet';
 import { DEFAULT_SETTINGS, loadPeople, loadSettings, savePeople, saveSettings } from './src/storage';
 import { ensurePermission, notificationsSupported, rescheduleAll } from './src/notifications';
 import { colors, gradients, shadow } from './src/theme';
-import { Person, Settings } from './src/types';
+import { ImportCandidate, Person, Settings } from './src/types';
+import { decodeShare, shareCodeFromUrl } from './src/share';
+import { toCandidates } from './src/importers';
 
 type Tab = 'home' | 'import' | 'reminders';
 
@@ -25,6 +27,7 @@ export default function App() {
   const [editorOpen, setEditorOpen] = useState(false);
   const [permission, setPermission] = useState(false);
   const [wishFor, setWishFor] = useState<Person | null>(null);
+  const [incoming, setIncoming] = useState<{ from?: string; list: ImportCandidate[]; link: string } | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -32,6 +35,16 @@ export default function App() {
       setPeople(p);
       setSettings(s);
       setLoaded(true);
+      // Lien de partage ouvert (version web) : #partage=…
+      if (typeof window !== 'undefined' && window.location?.hash) {
+        const code = shareCodeFromUrl(window.location.href);
+        const shared = code ? decodeShare(code) : null;
+        if (shared) {
+          setIncoming({ from: shared.from, list: toCandidates(shared.people, p), link: window.location.href });
+          setTab('import');
+        }
+        if (code) window.history.replaceState(null, '', window.location.pathname + window.location.search);
+      }
       if (notificationsSupported) setPermission(await ensurePermission());
     })();
   }, []);
@@ -87,7 +100,7 @@ export default function App() {
         <StatusBar style="dark" />
         <View style={{ flex: 1 }}>
           {tab === 'home' && <HomeScreen people={people} onOpen={openPerson} onAdd={openNew} onImport={() => setTab('import')} onWish={setWishFor} />}
-          {tab === 'import' && <ImportScreen people={people} onImport={importMany} onRestore={(list) => setPeople((prev) => [...prev, ...list])} />}
+          {tab === 'import' && <ImportScreen people={people} onImport={importMany} onRestore={(list) => setPeople((prev) => [...prev, ...list])} incoming={incoming} onIncomingDone={() => setIncoming(null)} />}
           {tab === 'reminders' && (
             <RemindersScreen people={people} settings={settings} onChange={setSettings} permission={permission}
               onAskPermission={async () => setPermission(await ensurePermission())} />

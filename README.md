@@ -12,6 +12,7 @@ App mobile (iPhone + Android) pour ne plus oublier les anniversaires de ses proc
   - SMS et WhatsApp : la conversation de la personne s'ouvre avec le texte déjà collé, il reste à appuyer sur Envoyer (il faut son numéro dans sa fiche ; les numéros en 06… sont considérés français).
   - Messenger, Snapchat, Instagram : ces apps n'acceptent pas de texte pré-rempli venant d'une autre app. Le message est copié et l'app s'ouvre (sur la conversation si l'identifiant m.me / pseudo Snap est renseigné) : appui long, Coller, Envoyer.
   - « Autre… » ouvre le menu de partage du téléphone.
+- **Partage** : choisir des anniversaires (cases à cocher) et les envoyer par lien ; la personne qui l'ouvre choisit qui ajouter. La liste est dans la partie `#` du lien, donc jamais envoyée à un serveur. Les idées cadeau et notes ne sont pas partagées.
 - Les données restent sur le téléphone (pas de compte, pas de serveur).
 
 ## Facebook et Snapchat

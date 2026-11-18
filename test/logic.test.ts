@@ -83,3 +83,20 @@ test('export calendrier .ics', () => {
   assert.match(ics, /livre\\, vinyle/);
   assert.ok(ics.split('\r\n').every((l) => new TextEncoder().encode(l).length <= 75));
 });
+
+import { buildShareLink, decodeShare, shareCodeFromUrl } from '../src/share.ts';
+
+test('lien de partage', () => {
+  const people = [
+    { id: '1', name: 'Léa Martin 🌸', day: 21, month: 11, year: 1994, relation: 'famille' as const, emoji: '🌸', giftNeeded: true, giftIdeas: 'secret', phone: '0612345678' },
+    { id: '2', name: 'Hugo', day: 2, month: 12, relation: 'collegue' as const, emoji: '⚽️', giftNeeded: false },
+  ];
+  const link = buildShareLink(people, 'https://joffrey16.github.io/Anniv-/', 'Joffrey');
+  assert.ok(link.startsWith('https://joffrey16.github.io/Anniv-/#partage='));
+  const res = decodeShare(shareCodeFromUrl(link)!);
+  assert.equal(res?.from, 'Joffrey');
+  assert.deepEqual(res?.people[0], { name: 'Léa Martin 🌸', day: 21, month: 11, year: 1994, relation: 'famille', emoji: '🌸', phone: '0612345678' });
+  assert.equal(res?.people[1].year, undefined);
+  assert.ok(!link.includes('secret')); // les idées cadeau ne sont pas partagées
+  assert.equal(decodeShare('nimportequoi'), null);
+});
