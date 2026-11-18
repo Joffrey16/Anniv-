@@ -15,6 +15,13 @@ import { colors, gradients, shadow } from './src/theme';
 import { ImportCandidate, Person, Settings } from './src/types';
 import { decodeShare, shareCodeFromUrl } from './src/share';
 import { toCandidates } from './src/importers';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import AuthScreen from './src/screens/AuthScreen';
+import AccountSheet from './src/components/AccountSheet';
+import { cloudEnabled } from './src/cloud';
+import { useCloudSync } from './src/useCloudSync';
+
+const LOCAL_MODE_KEY = 'anniv.localmode';
 
 type Tab = 'home' | 'import' | 'reminders';
 
@@ -28,10 +35,14 @@ export default function App() {
   const [permission, setPermission] = useState(false);
   const [wishFor, setWishFor] = useState<Person | null>(null);
   const [incoming, setIncoming] = useState<{ from?: string; list: ImportCandidate[]; link: string } | null>(null);
+  const [localMode, setLocalMode] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
+  const { user, logout } = useCloudSync({ loaded, people, settings, setPeople, setSettings });
 
   useEffect(() => {
     (async () => {
-      const [p, s] = await Promise.all([loadPeople(), loadSettings()]);
+      const [p, s, lm] = await Promise.all([loadPeople(), loadSettings(), AsyncStorage.getItem(LOCAL_MODE_KEY).catch(() => null)]);
+      setLocalMode(lm === '1');
       setPeople(p);
       setSettings(s);
       setLoaded(true);
@@ -92,14 +103,35 @@ export default function App() {
     const updated = prev.map((p) => (!p.phone && byName.has(norm(p.name)) ? { ...p, phone: byName.get(norm(p.name)) } : p));
     return [...updated, ...list];
   }), []);
+  const skipAccount = () => { setLocalMode(true); AsyncStorage.setItem(LOCAL_MODE_KEY, '1'); };
+  const askLogin = () => { setAccountOpen(false); setLocalMode(false); AsyncStorage.removeItem(LOCAL_MODE_KEY); };
+  const doLogout = async () => {
+    setAccountOpen(false);
+    await logout();
+    // Le téléphone est vidé : les anniversaires restent dans le compte.
+    setPeople([]);
+    setSettings(DEFAULT_SETTINGS);
+    setTab('home');
+  };
   const wish = (p: Person) => { setEditorOpen(false); setTimeout(() => setWishFor(p), 350); };
+
+  if (cloudEnabled && (user === undefined || !loaded)) {
+    return <View style={[styles.root, { alignItems: 'center', justifyContent: 'center' }]}><Text style={{ fontSize: 56 }}>🎂</Text></View>;
+  }
+  if (cloudEnabled && user === null && !localMode) {
+    return (
+      <SafeAreaProvider>
+        <View style={styles.root}><StatusBar style="light" /><AuthScreen onSkip={skipAccount} localCount={people.length} /></View>
+      </SafeAreaProvider>
+    );
+  }
 
   return (
     <SafeAreaProvider>
       <SafeAreaView style={styles.root} edges={['top']}>
         <StatusBar style="dark" />
         <View style={{ flex: 1 }}>
-          {tab === 'home' && <HomeScreen people={people} onOpen={openPerson} onAdd={openNew} onImport={() => setTab('import')} onWish={setWishFor} />}
+          {tab === 'home' && <HomeScreen people={people} onOpen={openPerson} onAdd={openNew} onImport={() => setTab('import')} onWish={setWishFor} onAccount={() => setAccountOpen(true)} account={user ? 'cloud' : 'local'} showAccount={cloudEnabled} />}
           {tab === 'import' && <ImportScreen people={people} onImport={importMany} onRestore={(list) => setPeople((prev) => [...prev, ...list])} incoming={incoming} onIncomingDone={() => setIncoming(null)} />}
           {tab === 'reminders' && (
             <RemindersScreen people={people} settings={settings} onChange={setSettings} permission={permission}
@@ -119,6 +151,7 @@ export default function App() {
         </View>
 
         <PersonEditor visible={editorOpen} initial={editing} onClose={() => setEditorOpen(false)} onSave={save} onDelete={remove} onWish={wish} />
+        <AccountSheet visible={accountOpen} email={user?.email ?? null} cloudEnabled={cloudEnabled} onClose={() => setAccountOpen(false)} onLogout={doLogout} onLogin={askLogin} />
         <WishSheet person={wishFor} template={settings.wishTemplate} onClose={() => setWishFor(null)}
           onUsed={(p, channel) => setPeople((prev) => prev.map((x) => (x.id === p.id ? { ...x, preferredChannel: channel } : x)))} />
       </SafeAreaView>

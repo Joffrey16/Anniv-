@@ -7,9 +7,12 @@ import { Person } from '../types';
 import { Card, GhostButton, GradientButton, RelationTag, SectionTitle } from '../components/ui';
 import { isIOS, isStandaloneWeb, isWeb } from '../platform';
 
-type Props = { people: Person[]; onOpen: (p: Person) => void; onAdd: () => void; onImport: () => void; onWish: (p: Person) => void };
+type Props = {
+  people: Person[]; onOpen: (p: Person) => void; onAdd: () => void; onImport: () => void; onWish: (p: Person) => void;
+  onAccount?: () => void; account?: 'cloud' | 'local'; showAccount?: boolean;
+};
 
-export default function HomeScreen({ people, onOpen, onAdd, onImport, onWish }: Props) {
+export default function HomeScreen({ people, onOpen, onAdd, onImport, onWish, onAccount, account, showAccount }: Props) {
   const [q, setQ] = useState('');
   const [hideInstall, setHideInstall] = useState(false);
   const sorted = useMemo(() => sortByUpcoming(people), [people]);
@@ -32,9 +35,17 @@ export default function HomeScreen({ people, onOpen, onAdd, onImport, onWish }: 
 
   return (
     <ScrollView contentContainerStyle={{ paddingBottom: 140 }} showsVerticalScrollIndicator={false}>
-      <View style={styles.header}>
-        <Text style={styles.hello}>Coucou 👋</Text>
-        <Text style={styles.title}>Anniv !</Text>
+      <View style={[styles.header, { flexDirection: 'row', alignItems: 'flex-end' }]}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.hello}>Coucou 👋</Text>
+          <Text style={styles.title}>Anniv !</Text>
+        </View>
+        {showAccount && (
+          <Pressable onPress={onAccount} style={[styles.account, account === 'local' && { backgroundColor: '#FFF1DE' }]} accessibilityLabel="Mon compte">
+            <Text style={{ fontSize: 20 }}>{account === 'cloud' ? '👤' : '⚠️'}</Text>
+            <Text style={styles.accountTxt}>{account === 'cloud' ? 'Compte' : 'Pas de compte'}</Text>
+          </Pressable>
+        )}
       </View>
 
       {isWeb && isIOS && !isStandaloneWeb && !hideInstall && (
@@ -143,6 +154,8 @@ const styles = StyleSheet.create({
   header: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 16 },
   hello: { fontSize: 16, color: colors.muted, fontWeight: '600' },
   title: { fontSize: 36, fontWeight: '900', color: colors.ink, letterSpacing: -1 },
+  account: { alignItems: 'center', backgroundColor: '#fff', borderRadius: 16, paddingVertical: 6, paddingHorizontal: 10, marginBottom: 6, ...shadow, shadowOpacity: 0.06 },
+  accountTxt: { fontSize: 10, fontWeight: '800', color: colors.muted, marginTop: 1 },
   install: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 20, marginBottom: 14, backgroundColor: '#EEE9FF', borderRadius: 16, padding: 12 },
   installTxt: { flex: 1, color: '#4B32C3', fontWeight: '700', lineHeight: 19 },
   installX: { color: '#4B32C3', fontWeight: '900', marginLeft: 8 },

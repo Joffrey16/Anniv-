@@ -47,3 +47,11 @@ Différences avec l'app native :
 - bouton « Sauvegarder » (fichier JSON) car les données restent dans le téléphone.
 
 Construire localement : `EXPO_BASE_URL=/Anniv- npm run build:web` (dossier `dist/`).
+
+## Comptes et sauvegarde en ligne (Firebase)
+
+Si `src/firebaseConfig.ts` contient la configuration d'un projet Firebase, l'app propose de créer un compte (e-mail + mot de passe). Les anniversaires et réglages sont alors stockés dans Firestore (`users/{uid}` et `users/{uid}/people/{id}`) et synchronisés en direct sur tous les appareils. Les anniversaires déjà saisis sur le téléphone sont ajoutés au compte à la première connexion. « Continuer sans compte » garde le fonctionnement 100 % local.
+
+Mise en place : créer un projet Firebase, activer Authentication › E-mail/Mot de passe, créer Firestore (mode production), coller le contenu de `firestore.rules` dans Firestore › Règles, puis la config web dans `src/firebaseConfig.ts`.
+
+Tests locaux avec les émulateurs : `npx firebase-tools emulators:start --only auth,firestore --project demo-anniv`, puis `EXPO_PUBLIC_FIREBASE_EMULATOR=127.0.0.1 npx expo start --web`.
